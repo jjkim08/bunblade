@@ -14,5 +14,9 @@ public class EnemyStats : ScriptableObject
     public int baseSpeed;
     public int baseluck; // luck = crit chance
 
+    [Header("Elemental Affinities")]
+    public List<Element> weaknesses = new List<Element>(); // 1.5x damage taken
+    public List<Element> resistances = new List<Element>(); // 0.5x damage taken
+
     // make one for animations
 }

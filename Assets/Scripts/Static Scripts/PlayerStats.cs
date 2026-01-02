@@ -18,7 +18,11 @@ public class PlayerStats : ScriptableObject
     public int baseSpeed;
     public int baseluck; // luck = crit chance
 
-    public int maxMana = 10;
+    [Header("Elemental Affinities")]
+    public List<Element> weaknesses = new List<Element>(); // 1.5x damage taken
+    public List<Element> resistances = new List<Element>(); // 0.5x damage taken
+
+    public int maxMana = 5;
     public List<Spell> serializableSpellInfo;
     public Dictionary<string, Spell> spellInfo;
 
@@ -29,6 +33,6 @@ public class PlayerStats : ScriptableObject
         {
             spellInfo.Add(serializableSpellInfo[i].name, serializableSpellInfo[i]);
         } // added comment
-        
+
     }
 }

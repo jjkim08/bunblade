@@ -10,6 +10,7 @@ public class MenuActions : MonoBehaviour
     public PlayerAction playerAction;
     public RectTransform arrow;
     public event Action<List<string>> menuChanged;
+    public event Action<List<(string text, bool canAfford)>> spellMenuChanged; // New event for spell menu with affordability info
     public event Action<string> playerActionFired;
     private int currentSelection = 0;
     public Stack<List<string>> currentMenuStack = new Stack<List<string>>();
@@ -24,10 +25,9 @@ public class MenuActions : MonoBehaviour
         -40.7f,
         -115.7f
     };
-    private List<string> mainMenu = new List<string> { "Attack", "Spells", "Items", "Run" };
 
+    private List<string> mainMenu;
     private List<string> spellMenu;
-    private int currentID;
 
     void Awake()
     {
@@ -39,25 +39,36 @@ public class MenuActions : MonoBehaviour
         playerAction.menuDisplay -= menuDisplay;
     }
 
-    void OnEnable()
-    {
-        currentMenuStack = new Stack<List<string>>();
-        currentMenuStack.Push(mainMenu);
-
-        menuChanged?.Invoke(mainMenu);
-    }
-
     private int menuUp() => currentSelection == 0 ? currentMenuStack.Peek().Count - 1 : currentSelection - 1;
     private int menuDown() => currentSelection == currentMenuStack.Peek().Count - 1 ? 0 : currentSelection + 1;
 
-    private void menuDisplay(int id, bool show) {
-        currentID = id;
+    private void menuDisplay(bool show)
+    {
+        currentPlayer = GameSession.gs.playerMember;
 
-        // the new spell menu should be based on ID now
+        // Build spell menu
+        spellMenu = currentPlayer.playerStats.spellInfo.Keys.ToList();
 
-        spellMenu = GameSession.gs.partyMembers[id].playerStats.spellInfo.Keys.ToList();
+        // Build main menu dynamically based on available options
+        mainMenu = new List<string> { "Attack" };
 
-        currentPlayer = GameSession.gs.partyMembers[id];
+        if (spellMenu.Count > 0)
+        {
+            mainMenu.Add("Spells");
+        }
+
+        if (itemMenu.Count > 0)
+        {
+            mainMenu.Add("Items");
+        }
+
+        mainMenu.Add("Run");
+
+        // Reset menu stack with new main menu
+        currentMenuStack.Clear();
+        currentMenuStack.Push(mainMenu);
+        currentSelection = 0;
+        menuChanged?.Invoke(mainMenu);
 
         gameObject.SetActive(show);
     }
@@ -66,33 +77,45 @@ public class MenuActions : MonoBehaviour
     {
         if (currentMenuStack.Count == 1)
         {
-            if (currentSelection == 0)
+            string selectedOption = mainMenu[currentSelection];
+
+            if (selectedOption == "Attack")
             {
                 playerActionFired?.Invoke("attack");
             }
-            else if (currentSelection == 1)
+            else if (selectedOption == "Spells")
             {
-                currentMenuStack.Push(spellMenu); // goes to the spell menu
+                currentMenuStack.Push(spellMenu);
+                currentSelection = 0;
+
+                // Send spell menu with affordability info
+                var spellsWithAffordability = spellMenu.Select(spell =>
+                    (spell, currentPlayer.canCastSpell(spell))
+                ).ToList();
+                spellMenuChanged?.Invoke(spellsWithAffordability);
+            }
+            else if (selectedOption == "Items")
+            {
+                currentMenuStack.Push(itemMenu);
                 currentSelection = 0;
             }
-            else if (currentSelection == 2)
-            {
-                currentMenuStack.Push(itemMenu); // goes to the item menu next time
-                currentSelection = 0;
-            }
+            // "Run" option can be handled here if needed
         }
         else
         {
-            if (currentMenuStack.Peek().SequenceEqual(spellMenu) &&
-            currentPlayer.playerStats.spellInfo[currentMenuStack.Peek()[currentSelection]].manaCost <= currentPlayer.currentMana)
+            if (currentMenuStack.Peek().SequenceEqual(spellMenu))
             {
-                playerActionFired?.Invoke(currentMenuStack.Peek()[currentSelection]);
-            } else
-            {
-                print("Not enough mana!");
+                string selectedSpell = currentMenuStack.Peek()[currentSelection];
+                if (currentPlayer.canCastSpell(selectedSpell))
+                {
+                    playerActionFired?.Invoke(selectedSpell);
+                }
+                else
+                {
+                    print("Not enough mana!");
+                }
             }
-
-            if (currentMenuStack.Peek().SequenceEqual(itemMenu))
+            else if (currentMenuStack.Peek().SequenceEqual(itemMenu))
             {
                 playerActionFired?.Invoke(currentMenuStack.Peek()[currentSelection]);
             }

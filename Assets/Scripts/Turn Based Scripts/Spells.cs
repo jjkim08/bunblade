@@ -8,6 +8,7 @@ public class Spell : ScriptableObject
     public string description;
 
     public int manaCost;
+    public Element element = Element.None; // Element type of this spell
 
     public int appliedStacks; // for DoT or debuffs
 

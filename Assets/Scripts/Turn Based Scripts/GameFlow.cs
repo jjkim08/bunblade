@@ -10,68 +10,36 @@ public class GameFlow : MonoBehaviour
     public PlayerAction playerAction;
     public EnemyAction enemyAction;
 
-    public int[] frontLine = new int[2]; // ids of the front line characters, first is player, second is enemy
+    public event Action<int> turnChanged; // 0 = player turn, 1 = enemy turn
 
-    public event Action<int> turnChanged;
-
-    private SortedList<(int time, int id), int> turnOrder = new SortedList<(int time, int id), int>();
-    // key: (time, id) for uniqueness, value: id
-    private Dictionary<int, int> speedDict = new Dictionary<int, int>();
-    // id : speed hashmap
+    private int currentTurnActor = -1; // Track which actor (player/enemy) is currently taking actions
+    private SortedList<(int time, int actor), int> turnOrder = new SortedList<(int time, int actor), int>();
+    // key: (time, actor) for uniqueness, value: actor (0 = player, 1 = enemy)
+    private Dictionary<int, int> speedByActor = new Dictionary<int, int>();
+    // actor : speed hashmap
 
     private int determineSpeedCoefficient(int speed)
     {
         return (int)((float)1 / speed * 10000);
     }
 
-    private void addEventsToAction()
-    {
-        playerAction.removeTriggers();
-        enemyAction.removeTriggers();
-
-        // Get the first player turn (id < 10) in sorted order
-        for (int i = 0; i < turnOrder.Count; i++)
-        {
-            if (turnOrder.Values[i] < 10)
-            {
-                playerAction.addTriggers(turnOrder.Values[i]);
-                break;
-            }
-        }
-
-        // Get the first enemy turn (id >= 10) in sorted order
-        for (int i = 0; i < turnOrder.Count; i++)
-        {
-            if (turnOrder.Values[i] >= 10)
-            {
-                enemyAction.addTriggers(turnOrder.Values[i]);
-                break;
-            }
-        }
-    }
-
     void Start()
     {
-        foreach (KeyValuePair<int, PlayerState> member in GameSession.gs.partyMembers)
-        {
-            int time = determineSpeedCoefficient(member.Value.playerStats.baseSpeed);
-            int id = member.Value.playerStats.id;
-            turnOrder.Add((time, id), id);
-            speedDict.Add(id, time);
-        }
+        // Initialize turn order with team 0 (player) and team 1 (enemy)
+        int playerTime = determineSpeedCoefficient(GameSession.gs.playerMember.playerStats.baseSpeed);
+        int enemyTime = determineSpeedCoefficient(GameSession.gs.enemyMember.enemyStats.baseSpeed);
 
-        foreach (KeyValuePair<int, EnemyState> enemy in GameSession.gs.enemyPartyMembers)
-        {
-            int time = determineSpeedCoefficient(enemy.Value.enemyStats.baseSpeed);
-            int id = enemy.Value.enemyStats.id;
-            turnOrder.Add((time, id), id);
-            speedDict.Add(id, time);
-        }
+        turnOrder.Add((playerTime, 0), 0);
+        turnOrder.Add((enemyTime, 1), 1);
+        speedByActor.Add(0, playerTime);
+        speedByActor.Add(1, enemyTime);
 
-        foreach (KeyValuePair<int, int> i in speedDict)
-        {
-            print(i.Key + " has speed " + i.Value);
-        }
+        print("Player has speed coefficient " + playerTime);
+        print("Enemy has speed coefficient " + enemyTime);
+
+        // Set up damage event triggers once for 1v1
+        playerAction.addTriggers();
+        enemyAction.addTriggers();
 
         continueGameFlow();
     }
@@ -88,20 +56,75 @@ public class GameFlow : MonoBehaviour
         enemyAction.enemyTurnEnd -= continueGameFlow;
     }
 
+    private void cleanupTriggers()
+    {
+        playerAction.removeTriggers();
+        enemyAction.removeTriggers();
+    }
+
 
     private void continueGameFlow()
     {
-        var firstKey = turnOrder.Keys[0]; // (time, id) tuple
-        int currentTurnTime = firstKey.time;
-        int currentID = turnOrder.Values[0];
+        // Check if battle is over
+        if (GameSession.gs.playerMember.currentHealth <= 0)
+        {
+            EndBattle("Enemy wins! Player has been defeated.");
+            return;
+        }
 
-        addEventsToAction();
+        if (GameSession.gs.enemyMember.currentHealth <= 0)
+        {
+            EndBattle("Player wins! Enemy has been defeated.");
+            return;
+        }
 
-        turnOrder.RemoveAt(0); // remove the first element
+        // Check if current team still has push turn icons
+        bool currentActorHasIcons = false;
+        if (currentTurnActor == 0 && GameSession.gs.playerMember.HasPushTurnIcons())
+        {
+            currentActorHasIcons = true;
+        }
+        else if (currentTurnActor == 1 && GameSession.gs.enemyMember.HasPushTurnIcons())
+        {
+            currentActorHasIcons = true;
+        }
 
-        print("It's now character " + currentID + "'s turn!");
+        // If current actor still has icons, continue their turn
+        if (currentActorHasIcons)
+        {
+            print($"{(currentTurnActor == 0 ? "Player" : "Enemy")} continues with {(currentTurnActor == 0 ? GameSession.gs.playerMember.pushTurnHalves : GameSession.gs.enemyMember.pushTurnHalves)} half-icons remaining");
+            turnChanged?.Invoke(currentTurnActor);
+            return;
+        }
 
-        turnOrder.Add((currentTurnTime + speedDict[currentID], currentID), currentID); // add it back with updated time
-        turnChanged?.Invoke(currentID); // tell the PlayerAction or EnemyAction component that it's their turn
+        // Current actor is out of icons, switch to next actor in initiative
+        var (time, actor) = turnOrder.Keys[0];
+        turnOrder.RemoveAt(0);
+
+        currentTurnActor = actor;
+
+        // Reset push turn icons for the new team's turn phase
+        if (actor == 0)
+        {
+            GameSession.gs.playerMember.InitializePushTurnIcons();
+        }
+        else
+        {
+            GameSession.gs.enemyMember.InitializePushTurnIcons();
+        }
+
+        print($"It's now {(actor == 0 ? "Player" : "Enemy")}'s turn phase! (6 half-icons)");
+
+        // Reschedule this unit's next turn
+        turnOrder.Add((time + speedByActor[actor], actor), actor);
+        turnChanged?.Invoke(actor);
+    }
+
+    private void EndBattle(string message)
+    {
+        print(message);
+        GameSession.gs.SyncPlayerToGlobal(); // export updated health (and future globals) back to shared data
+        cleanupTriggers();
+        gameObject.SetActive(false);
     }
 }

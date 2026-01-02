@@ -17,11 +17,27 @@ public class PlayerState // essentially, i want this class to be a getter class 
     // actively 
     // currentHealth
     // onHealthChanged
+
     public float currentHealth;
     public float currentShield = 0;
     public event Action<float> onHealthChanged;
 
-    public int currentMana;
+    public const int MAX_MANA = 5;
+    public int currentMana = 0;
+    public event Action<int, int> onManaChanged; // (current, max)
+
+    // Push Turn Icon System (halves only, 2 halves = 1 full)
+    public int pushTurnHalves = 0;
+    public event Action<int> onPushTurnHalvesChanged;
+
+    // Burn tracking: total stacks and remaining turns
+    public int currentBurnStacks = 0;
+    public int burnTurnsRemaining = 0;
+    public Element burnElement = Element.None; // track element of burn for damage calculation
+
+    // Slow tracking: total stacks and remaining turns
+    public int currentSlowStacks = 0;
+    public int slowTurnsRemaining = 0;
 
     public PlayerStats playerStats;
 
@@ -38,8 +54,28 @@ public class PlayerState // essentially, i want this class to be a getter class 
         return (float)(95.0 * (1.0 - Math.Pow(Math.E, -0.02f * defe)));
     }
 
-    public void takeDamage(float damage)
+    private float GetElementalMultiplier(Element attackElement)
     {
+        if (attackElement == Element.None) return 1f;
+        if (playerStats.weaknesses.Contains(attackElement)) return 1.5f;
+        if (playerStats.resistances.Contains(attackElement)) return 0.5f;
+        return 1f;
+    }
+
+    public int CalculateIconCost(Element attackElement)
+    {
+        // Costs measured in halves: neutral=2, weakness=1, resistance=3
+        EnemyState enemy = GameSession.gs.enemyMember;
+        if (attackElement != Element.None && enemy.enemyStats.weaknesses.Contains(attackElement)) return 1;
+        if (attackElement != Element.None && enemy.enemyStats.resistances.Contains(attackElement)) return 3;
+        return 2; // neutral or no element
+    }
+
+    public void takeDamage(float damage, Element element = Element.None)
+    {
+        // Apply elemental multiplier
+        damage *= GetElementalMultiplier(element);
+
         // shields absorb 100% damage but aren't affected by damage reduction, ex 30 damage will deal 30 damage to shield
         // todo: make a shield bar
 
@@ -50,7 +86,8 @@ public class PlayerState // essentially, i want this class to be a getter class 
             {
                 damage = -currentShield; // remaining damage
                 currentShield = 0;
-            } else
+            }
+            else
             {
                 damage = 0;
             }
@@ -106,9 +143,29 @@ public class PlayerState // essentially, i want this class to be a getter class 
         return (int)(playerStats.baseAbilityPower * 1.5f); // heals ability power * 1.5 health
     }
 
-    public int calculateManaGainOnAttack()
+    // Mana system
+    public void gainMana(int amount)
     {
-        return 1; // gains 1 mana per attack
+        currentMana += amount;
+        if (currentMana > MAX_MANA)
+        {
+            currentMana = MAX_MANA;
+        }
+        onManaChanged?.Invoke(currentMana, MAX_MANA);
+    }
+
+    public bool canCastSpell(string spellName)
+    {
+        if (!playerStats.spellInfo.ContainsKey(spellName)) return false;
+        int manaCost = playerStats.spellInfo[spellName].manaCost;
+        return currentMana >= manaCost;
+    }
+
+    public void consumeMana(int amount)
+    {
+        currentMana -= amount;
+        if (currentMana < 0) currentMana = 0;
+        onManaChanged?.Invoke(currentMana, MAX_MANA);
     }
 
     public int calculateManaGainPassive()
@@ -116,8 +173,93 @@ public class PlayerState // essentially, i want this class to be a getter class 
         return 1; // gains 1 mana at the start of their turn
     }
 
+    // Burn system: adds stacks and refreshes duration to 3 turns
+    public void takeBurn(int burnStacks, Element element = Element.Fire)
+    {
+        currentBurnStacks += burnStacks;
+        burnTurnsRemaining = 3; // refresh to 3 player turns
+        burnElement = element; // track the element for damage calculation
+    }
+
+    public float calculateBurnDamage()
+    {
+        if (currentBurnStacks <= 0) return 0f;
+        float baseDamage = (float)(playerStats.baseMaxHealth * currentBurnStacks * 0.005); // 0.5% max health per stack
+        return baseDamage * GetElementalMultiplier(burnElement); // apply elemental multiplier
+    }
+
+    public void tickBurnDuration()
+    {
+        if (burnTurnsRemaining > 0)
+        {
+            burnTurnsRemaining--;
+            if (burnTurnsRemaining <= 0)
+            {
+                currentBurnStacks = 0; // clear stacks when duration expires
+                burnElement = Element.None; // clear element
+            }
+        }
+    }
+
+    // Slow system: adds stacks and refreshes duration to 3 turns
+    public void takeSlow(int slowStacks)
+    {
+        currentSlowStacks += slowStacks;
+        slowTurnsRemaining = 3; // refresh to 3 player turns
+    }
+
+    public float GetSpeedTimeMultiplier()
+    {
+        if (currentSlowStacks <= 0) return 1f;
+        // Hyperbolic diminishing returns: base*s / (1 + k*s)
+        float basePerStack = 0.10f;
+        float k = 0.5f;
+        float effectiveSlow = basePerStack * currentSlowStacks / (1f + k * currentSlowStacks);
+        return 1f + effectiveSlow; // multiply base turn time by this
+    }
+
+    public void tickSlowDuration()
+    {
+        if (slowTurnsRemaining > 0)
+        {
+            slowTurnsRemaining--;
+            if (slowTurnsRemaining <= 0)
+            {
+                currentSlowStacks = 0; // clear stacks when duration expires
+            }
+        }
+    }
+
     public void updateHealth()
     {
         onHealthChanged?.Invoke((float)currentHealth / (float)playerStats.baseMaxHealth);
+    }
+
+    // Push Turn Icon System Methods (halves)
+    public void InitializePushTurnIcons()
+    {
+        pushTurnHalves = 6; // 6 halves = 3 full equivalents
+        onPushTurnHalvesChanged?.Invoke(pushTurnHalves);
+    }
+
+    public bool HasPushTurnIcons()
+    {
+        return pushTurnHalves > 0;
+    }
+
+    public void ConsumePushTurnIcons(int iconCost)
+    {
+        // iconCost measured in halves. Can go negative; caller/game flow will end turn when none remain.
+        if (iconCost <= 0) return;
+
+        pushTurnHalves -= iconCost;
+
+        // If only 1 half remains and any action is taken, consume it (cost already applied above).
+        if (pushTurnHalves < 0)
+        {
+            // Allow negative to signal depletion; GameFlow checks HasPushTurnIcons on next loop.
+        }
+
+        onPushTurnHalvesChanged?.Invoke(pushTurnHalves);
     }
 }

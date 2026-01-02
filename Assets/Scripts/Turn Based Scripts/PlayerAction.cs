@@ -9,16 +9,15 @@ public class PlayerAction : MonoBehaviour
     public MenuActions menuActions;
 
     public event Action playerTurnEnd;
-    public event Action<int, bool> menuDisplay; // id and whether to show or not
-    public event Action<int> applyBurn;
+    public event Action<bool> menuDisplay; // whether to show or not
+    public event Action<int, Element> applyBurn; // (stacks, element)
     public event Action<int> applySlow;
     public event Action<int> applyDamageDebuff;
-    public event Action<float> dealDamage;
+    public event Action<float, Element> dealDamage; // (damage, element)
 
     public EnemyAction enemyAction;
 
     public PlayerState currentPlayer;
-    private int currentID;
 
     void OnEnable()
     {
@@ -34,9 +33,9 @@ public class PlayerAction : MonoBehaviour
         menuActions.playerActionFired -= myTurnFinalization;
     }
 
-    public void addTriggers(int id)
+    public void addTriggers()
     {
-        enemyAction.enemyDealDamage += GameSession.gs.partyMembers[id].takeDamage;
+        enemyAction.enemyDealDamage += GameSession.gs.playerMember.takeDamage;
     }
 
     public void removeTriggers()
@@ -45,46 +44,73 @@ public class PlayerAction : MonoBehaviour
         applyBurn = null;
         applySlow = null;
         applyDamageDebuff = null;
+        enemyAction.enemyDealDamage -= GameSession.gs.playerMember.takeDamage;
     }
 
-    private void myTurnInitialization(int id)
+    private void myTurnInitialization(int turnOwner)
     {
-        if (id >= 10) // if enemy turn
+        if (turnOwner == 1) return; // enemy turn
+
+        currentPlayer = GameSession.gs.playerMember;
+
+        // Gain mana at start of turn
+        currentPlayer.gainMana(1);
+        Debug.Log($"Player gained 1 mana. Current: {currentPlayer.currentMana}/{PlayerState.MAX_MANA}");
+
+        // Apply burn damage at start of turn
+        ApplyBurnDamage();
+
+        menuDisplay?.Invoke(true);
+    }
+
+    private void ApplyBurnDamage()
+    {
+        if (currentPlayer.currentBurnStacks > 0)
         {
-            return;
+            float burnDamage = currentPlayer.calculateBurnDamage();
+            currentPlayer.takeDamage(burnDamage, currentPlayer.burnElement);
+            Debug.Log($"Player took {burnDamage} burn damage ({currentPlayer.currentBurnStacks} stacks, {currentPlayer.burnTurnsRemaining} turns remaining)");
         }
-
-        // make the menu screen pop up in the first place
-
-        currentID = id;
-        currentPlayer = GameSession.gs.partyMembers[currentID];
-
-        menuDisplay?.Invoke(id, true);
     }
 
     private void myTurnFinalization(string action)
     {
         // a menu action has been chosen
+        Element actionElement = Element.None;
+        float iconCost = 1.0f; // Default cost
 
         if (action == "attack")
         {
             float totalDamage = currentPlayer.calculateBasicAttack();
+            actionElement = Element.None;
 
-            dealDamage?.Invoke(totalDamage);
-            print("Player " + currentID + " dealt " + totalDamage + " damage with a basic attack.");
+            dealDamage?.Invoke(totalDamage, actionElement);
+            print("Player dealt " + totalDamage + " damage with a basic attack.");
             // add a pause or something for attack animation to play
         }
         else if (currentPlayer.playerStats.spellInfo.Keys.ToList().Contains(action))
         {
+            // Check if player has enough mana
+            if (!currentPlayer.canCastSpell(action))
+            {
+                print("Not enough mana to cast " + action + "!");
+                return;
+            }
+
+            int manaCost = currentPlayer.playerStats.spellInfo[action].manaCost;
+            actionElement = currentPlayer.playerStats.spellInfo[action].element;
             float totalDamage = currentPlayer.calculateSpellAttack(action);
 
-            dealDamage?.Invoke(totalDamage);
+            dealDamage?.Invoke(totalDamage, actionElement);
+            currentPlayer.consumeMana(manaCost);
+            Debug.Log($"Player cast {action}, consumed {manaCost} mana. Remaining: {currentPlayer.currentMana}/{PlayerState.MAX_MANA}");
+
             // add a pause or something for spell animation to play
 
             // also, apply spell effects here
             if (action == "Ignia")
             {
-                applyBurn?.Invoke(currentPlayer.playerStats.spellInfo[action].appliedStacks); // 2 stacks of burn
+                applyBurn?.Invoke(currentPlayer.playerStats.spellInfo[action].appliedStacks, actionElement); // 2 stacks of burn
             }
             else if (action == "Glacia")
             {
@@ -104,9 +130,17 @@ public class PlayerAction : MonoBehaviour
             }
         }
 
+        // Calculate and consume push turn halves based on action element
+        int iconCostHalves = currentPlayer.CalculateIconCost(actionElement);
+        currentPlayer.ConsumePushTurnIcons(iconCostHalves);
+        Debug.Log($"Player action consumed {iconCostHalves} half-icons. Remaining halves: {currentPlayer.pushTurnHalves}");
+
         // make items work later
 
-        enemyAction.enemyDealDamage -= GameSession.gs.partyMembers[currentID].takeDamage;
+        // Tick debuff durations at end of turn
+        currentPlayer.tickBurnDuration();
+        currentPlayer.tickSlowDuration();
+
         playerTurnEnd?.Invoke();
     }
 }

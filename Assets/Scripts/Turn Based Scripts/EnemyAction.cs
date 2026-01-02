@@ -8,11 +8,11 @@ public class EnemyAction : MonoBehaviour
 {
     public GameFlow gameManager;
     public event Action enemyTurnEnd;
-    public event Action<float> enemyDealDamage;
+    public event Action<float, Element> enemyDealDamage; // (damage, element)
     public PlayerAction playerAction;
 
-    private int currentID;
     public EnemyState currentEnemy;
+
     void OnEnable()
     {
         gameManager.turnChanged += myTurnStart;
@@ -21,48 +21,59 @@ public class EnemyAction : MonoBehaviour
     void OnDisable()
     {
         gameManager.turnChanged -= myTurnStart;
-
-        // playerAction.applyBurn -= takeBurn;
     }
 
-    public void addTriggers(int id)
+    public void addTriggers()
     {
-        playerAction.dealDamage += GameSession.gs.enemyPartyMembers[id].takeDamage;
-        playerAction.applyBurn += GameSession.gs.enemyPartyMembers[id].takeBurn;
+        playerAction.dealDamage += GameSession.gs.enemyMember.takeDamage;
+        playerAction.applyBurn += GameSession.gs.enemyMember.takeBurn;
+        playerAction.applySlow += GameSession.gs.enemyMember.takeSlow;
     }
 
     public void removeTriggers()
     {
         enemyDealDamage = null;
+        playerAction.dealDamage -= GameSession.gs.enemyMember.takeDamage;
+        playerAction.applyBurn -= GameSession.gs.enemyMember.takeBurn;
+        playerAction.applySlow -= GameSession.gs.enemyMember.takeSlow;
     }
 
-    private void myTurnStart(int id)
+    private void myTurnStart(int turnOwner)
     {
-        if (id < 10) return; // not this enemy turn
+        if (turnOwner == 0) return; // player turn
 
-        currentID = id;
-        currentEnemy = GameSession.gs.enemyPartyMembers[currentID];
-
-        myTurn();
+        currentEnemy = GameSession.gs.enemyMember;
+        ExecuteTurn();
     }
 
-    private void myTurn()
+    private void ExecuteTurn()
     {
-        enemyDealDamage?.Invoke(currentEnemy.calculateAttack()); // add randomizer attacks
+        // Apply burn damage at start of turn
+        ApplyBurnDamage();
 
-        if (currentEnemy.currentBurnStacks.Count > 0) // removing burn stacks
-        {
-            currentEnemy.currentBurnStacks.RemoveAll(stack => stack.Item2 <= 0); // remove expired stacks
+        // Execute attack (enemies use physical attacks with no element)
+        Element attackElement = Element.None;
+        enemyDealDamage?.Invoke(currentEnemy.calculateAttack(), attackElement);
 
-            for (int i = 0; i < currentEnemy.currentBurnStacks.Count; i++)
-            {
-                var (stacks, duration) = currentEnemy.currentBurnStacks[i];
-                currentEnemy.currentBurnStacks[i] = (stacks, duration - 1); // decrease duration
-            }
+        // Calculate and consume push turn half-icons
+        int iconCost = currentEnemy.CalculateIconCost(attackElement);
+        currentEnemy.ConsumePushTurnIcons(iconCost);
+        Debug.Log($"Enemy action consumed {iconCost} half-icons. Remaining halves: {currentEnemy.pushTurnHalves}");
 
-            currentEnemy.takeDamage(currentEnemy.calculateBurnDamage());
-        }
+        // Tick debuff durations at end of turn
+        currentEnemy.tickBurnDuration();
+        currentEnemy.tickSlowDuration();
 
         enemyTurnEnd?.Invoke();
+    }
+
+    private void ApplyBurnDamage()
+    {
+        if (currentEnemy.currentBurnStacks > 0)
+        {
+            float burnDamage = currentEnemy.calculateBurnDamage();
+            currentEnemy.takeDamage(burnDamage, currentEnemy.burnElement);
+            Debug.Log($"Enemy took {burnDamage} burn damage ({currentEnemy.currentBurnStacks} stacks, {currentEnemy.burnTurnsRemaining} turns remaining)");
+        }
     }
 }
