@@ -24,11 +24,10 @@ public class GameSession : MonoBehaviour
         gs = this;
         DontDestroyOnLoad(gameObject);
 
-        // Initialize 1v1 combatants
-        InitializeCombatants();
+        initializeCombatants();
     }
 
-    private void InitializeCombatants()
+    private void initializeCombatants()
     {
         if (playerStats == null || enemyStats == null)
         {
@@ -37,7 +36,6 @@ public class GameSession : MonoBehaviour
         }
 
         playerMember = new PlayerState(playerStats);
-        // Import health from global data if available, otherwise use base max health
         float playerMaxHealth = playerStats.baseMaxHealth;
         if (globalData != null)
         {
@@ -49,19 +47,18 @@ public class GameSession : MonoBehaviour
         {
             playerMember.currentHealth = playerMaxHealth;
         }
-        playerMember.currentMana = 0; // Start with 0 mana
-        playerMember.InitializePushTurnIcons(); // Initialize with 6 half-icons (3 full equivalents)
+        playerMember.currentMana = 0;
+        playerMember.initializePushTurnIcons();
 
         enemyMember = new EnemyState(enemyStats);
         enemyMember.currentHealth = enemyStats.baseMaxHealth;
-        enemyMember.InitializePushTurnIcons(); // Initialize with 6 half-icons (3 full equivalents)
+        enemyMember.initializePushTurnIcons();
     }
 
-    public void SyncPlayerToGlobal()
+    public void syncPlayerToGlobal()
     {
         if (globalData == null) return;
         float clamped = Mathf.Clamp(playerMember.currentHealth, 0, globalData.maxHealth);
         globalData.currentHealth = clamped;
-        // Items and other globals can be synced here when added.
     }
 }

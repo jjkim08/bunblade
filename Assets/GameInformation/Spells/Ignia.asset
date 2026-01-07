@@ -15,5 +15,6 @@ MonoBehaviour:
   spellName: Ignia
   description: Burns the enemy.
   manaCost: 0
+  element: 1
   appliedStacks: 3
   multiplier: 1.1

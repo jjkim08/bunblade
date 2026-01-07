@@ -48,16 +48,13 @@ public class EnemyAction : MonoBehaviour
 
     private void ExecuteTurn()
     {
-        // Apply burn damage at start of turn
         ApplyBurnDamage();
 
-        // Execute attack (enemies use physical attacks with no element)
         Element attackElement = Element.None;
         enemyDealDamage?.Invoke(currentEnemy.calculateAttack(), attackElement);
 
-        // Calculate and consume push turn half-icons
-        int iconCost = currentEnemy.CalculateIconCost(attackElement);
-        currentEnemy.ConsumePushTurnIcons(iconCost);
+        int iconCost = currentEnemy.calculateIconCost(attackElement);
+        currentEnemy.consumePushTurnIcons(iconCost);
         Debug.Log($"Enemy action consumed {iconCost} half-icons. Remaining halves: {currentEnemy.pushTurnHalves}");
 
         // Tick debuff durations at end of turn
@@ -72,7 +69,7 @@ public class EnemyAction : MonoBehaviour
         if (currentEnemy.currentBurnStacks > 0)
         {
             float burnDamage = currentEnemy.calculateBurnDamage();
-            currentEnemy.takeDamage(burnDamage, currentEnemy.burnElement);
+            currentEnemy.takeDamage(burnDamage, Element.Fire);
             Debug.Log($"Enemy took {burnDamage} burn damage ({currentEnemy.currentBurnStacks} stacks, {currentEnemy.burnTurnsRemaining} turns remaining)");
         }
     }

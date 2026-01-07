@@ -78,13 +78,12 @@ public class GameFlow : MonoBehaviour
             return;
         }
 
-        // Check if current team still has push turn icons
         bool currentActorHasIcons = false;
-        if (currentTurnActor == 0 && GameSession.gs.playerMember.HasPushTurnIcons())
+        if (currentTurnActor == 0 && GameSession.gs.playerMember.hasPushTurnIcons())
         {
             currentActorHasIcons = true;
         }
-        else if (currentTurnActor == 1 && GameSession.gs.enemyMember.HasPushTurnIcons())
+        else if (currentTurnActor == 1 && GameSession.gs.enemyMember.hasPushTurnIcons())
         {
             currentActorHasIcons = true;
         }
@@ -103,14 +102,13 @@ public class GameFlow : MonoBehaviour
 
         currentTurnActor = actor;
 
-        // Reset push turn icons for the new team's turn phase
         if (actor == 0)
         {
-            GameSession.gs.playerMember.InitializePushTurnIcons();
+            GameSession.gs.playerMember.initializePushTurnIcons();
         }
         else
         {
-            GameSession.gs.enemyMember.InitializePushTurnIcons();
+            GameSession.gs.enemyMember.initializePushTurnIcons();
         }
 
         print($"It's now {(actor == 0 ? "Player" : "Enemy")}'s turn phase! (6 half-icons)");
@@ -123,7 +121,7 @@ public class GameFlow : MonoBehaviour
     private void EndBattle(string message)
     {
         print(message);
-        GameSession.gs.SyncPlayerToGlobal(); // export updated health (and future globals) back to shared data
+        GameSession.gs.syncPlayerToGlobal();
         cleanupTriggers();
         gameObject.SetActive(false);
     }

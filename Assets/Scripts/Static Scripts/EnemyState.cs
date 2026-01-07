@@ -17,7 +17,6 @@ public class EnemyState
     // onHealthChanged
 
     public float currentHealth;
-    public int currentShield = 0;
     public event Action<float> onHealthChanged;
 
     // Push Turn Icon System (halves only, 2 halves = 1 full)
@@ -27,7 +26,6 @@ public class EnemyState
     // Burn tracking: total stacks and remaining turns
     public int currentBurnStacks = 0;
     public int burnTurnsRemaining = 0;
-    public Element burnElement = Element.None; // track element of burn for damage calculation
 
     // Slow tracking: total stacks and remaining turns
     public int currentSlowStacks = 0;
@@ -48,7 +46,7 @@ public class EnemyState
         return (float)(95.0 * (1.0 - Math.Pow(Math.E, -0.02f * defe)));
     }
 
-    private float GetElementalMultiplier(Element attackElement)
+    private float elementalMultiplier(Element attackElement)
     {
         if (attackElement == Element.None) return 1f;
         if (enemyStats.weaknesses.Contains(attackElement)) return 1.5f;
@@ -56,22 +54,17 @@ public class EnemyState
         return 1f;
     }
 
-    public int CalculateIconCost(Element attackElement)
+    public int calculateIconCost(Element attackElement)
     {
-        // Costs measured in halves: neutral=2, weakness=1, resistance=3
         PlayerState player = GameSession.gs.playerMember;
         if (attackElement != Element.None && player.playerStats.weaknesses.Contains(attackElement)) return 1;
         if (attackElement != Element.None && player.playerStats.resistances.Contains(attackElement)) return 3;
-        return 2; // neutral or no element
+        return 2;
     }
 
-    public void takeDamage(float damage, Element element = Element.None)
+    public void takeDamage(float damage, Element element)
     {
-        // Apply elemental multiplier
-        damage *= GetElementalMultiplier(element);
-
-        // shields absorb 100% damage but aren't affected by damage reduction, ex 30 damage will deal 30 damage to shield
-        // todo: make a shield bar
+        damage *= elementalMultiplier(element);
 
         currentHealth -= (float)(damage * 0.01f * (100f - damageReduction(enemyStats.baseDefense)));
         onHealthChanged?.Invoke((float)currentHealth / (float)enemyStats.baseMaxHealth);
@@ -83,16 +76,19 @@ public class EnemyState
     public void takeSlow(int slowStacks)
     {
         currentSlowStacks += slowStacks;
-        slowTurnsRemaining = 3; // refresh to 3 enemy turns
+        slowTurnsRemaining = 2; // refresh to 2 enemy turns
     }
 
-    public float GetSpeedTimeMultiplier()
+    public float getSpeedTimeMultiplier()
     {
         if (currentSlowStacks <= 0) return 1f;
-        // Hyperbolic diminishing returns: base*s / (1 + k*s)
         float basePerStack = 0.10f;
         float k = 0.5f;
         float effectiveSlow = basePerStack * currentSlowStacks / (1f + k * currentSlowStacks);
+
+        // base stacks * current stacks / (1 + k * current stacks) for diminishing returns
+        // desmos link: https://www.desmos.com/calculator/9ks9wf2avn
+
         return 1f + effectiveSlow; // multiply base turn time by this
     }
 
@@ -121,18 +117,17 @@ public class EnemyState
     }
 
     // Burn system: adds stacks and refreshes duration to 3 turns
-    public void takeBurn(int burnStacks, Element element = Element.Fire)
+    public void takeBurn(int burnStacks)
     {
         currentBurnStacks += burnStacks;
         burnTurnsRemaining = 3; // refresh to 3 enemy turns
-        burnElement = element; // track the element for damage calculation
     }
 
     public float calculateBurnDamage()
     {
         if (currentBurnStacks <= 0) return 0f;
         float baseDamage = (float)(enemyStats.baseMaxHealth * currentBurnStacks * 0.005); // 0.5% max health per stack
-        return baseDamage * GetElementalMultiplier(burnElement); // apply elemental multiplier
+        return baseDamage * elementalMultiplier(Element.Fire); // apply elemental multiplier
     }
 
     public void tickBurnDuration()
@@ -143,7 +138,6 @@ public class EnemyState
             if (burnTurnsRemaining <= 0)
             {
                 currentBurnStacks = 0; // clear stacks when duration expires
-                burnElement = Element.None; // clear element
             }
         }
     }
@@ -153,25 +147,23 @@ public class EnemyState
         onHealthChanged?.Invoke((float)currentHealth / (float)enemyStats.baseMaxHealth);
     }
 
-    // Push Turn Icon System Methods (halves)
-    public void InitializePushTurnIcons()
+    public void initializePushTurnIcons()
     {
-        pushTurnHalves = 6; // 6 halves = 3 full equivalents
+        pushTurnHalves = 6;
         onPushTurnHalvesChanged?.Invoke(pushTurnHalves);
     }
 
-    public bool HasPushTurnIcons()
+    public bool hasPushTurnIcons()
     {
         return pushTurnHalves > 0;
     }
 
-    public void ConsumePushTurnIcons(int iconCost)
+    public void consumePushTurnIcons(int iconCost)
     {
         if (iconCost <= 0) return;
 
         pushTurnHalves -= iconCost;
 
-        // Allow negative to signal depletion; GameFlow checks HasPushTurnIcons on next loop.
         onPushTurnHalvesChanged?.Invoke(pushTurnHalves);
     }
 }

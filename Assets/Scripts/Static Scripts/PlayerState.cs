@@ -22,7 +22,7 @@ public class PlayerState // essentially, i want this class to be a getter class 
     public float currentShield = 0;
     public event Action<float> onHealthChanged;
 
-    public const int MAX_MANA = 5;
+    public const int MAX_MANA = 10;
     public int currentMana = 0;
     public event Action<int, int> onManaChanged; // (current, max)
 
@@ -33,7 +33,7 @@ public class PlayerState // essentially, i want this class to be a getter class 
     // Burn tracking: total stacks and remaining turns
     public int currentBurnStacks = 0;
     public int burnTurnsRemaining = 0;
-    public Element burnElement = Element.None; // track element of burn for damage calculation
+
 
     // Slow tracking: total stacks and remaining turns
     public int currentSlowStacks = 0;
@@ -54,7 +54,7 @@ public class PlayerState // essentially, i want this class to be a getter class 
         return (float)(95.0 * (1.0 - Math.Pow(Math.E, -0.02f * defe)));
     }
 
-    private float GetElementalMultiplier(Element attackElement)
+    private float getElementalMultiplier(Element attackElement)
     {
         if (attackElement == Element.None) return 1f;
         if (playerStats.weaknesses.Contains(attackElement)) return 1.5f;
@@ -62,19 +62,17 @@ public class PlayerState // essentially, i want this class to be a getter class 
         return 1f;
     }
 
-    public int CalculateIconCost(Element attackElement)
+    public int calculateIconCost(Element attackElement)
     {
-        // Costs measured in halves: neutral=2, weakness=1, resistance=3
         EnemyState enemy = GameSession.gs.enemyMember;
         if (attackElement != Element.None && enemy.enemyStats.weaknesses.Contains(attackElement)) return 1;
         if (attackElement != Element.None && enemy.enemyStats.resistances.Contains(attackElement)) return 3;
-        return 2; // neutral or no element
+        return 2;
     }
 
     public void takeDamage(float damage, Element element = Element.None)
     {
-        // Apply elemental multiplier
-        damage *= GetElementalMultiplier(element);
+        damage *= getElementalMultiplier(element);
 
         // shields absorb 100% damage but aren't affected by damage reduction, ex 30 damage will deal 30 damage to shield
         // todo: make a shield bar
@@ -170,22 +168,21 @@ public class PlayerState // essentially, i want this class to be a getter class 
 
     public int calculateManaGainPassive()
     {
-        return 1; // gains 1 mana at the start of their turn
+        return 0;
     }
 
     // Burn system: adds stacks and refreshes duration to 3 turns
-    public void takeBurn(int burnStacks, Element element = Element.Fire)
+    public void takeBurn(int burnStacks)
     {
         currentBurnStacks += burnStacks;
-        burnTurnsRemaining = 3; // refresh to 3 player turns
-        burnElement = element; // track the element for damage calculation
+        burnTurnsRemaining = 3;
     }
 
     public float calculateBurnDamage()
     {
         if (currentBurnStacks <= 0) return 0f;
-        float baseDamage = (float)(playerStats.baseMaxHealth * currentBurnStacks * 0.005); // 0.5% max health per stack
-        return baseDamage * GetElementalMultiplier(burnElement); // apply elemental multiplier
+        float baseDamage = (float)(playerStats.baseMaxHealth * currentBurnStacks * 0.005);
+        return baseDamage * getElementalMultiplier(Element.Fire);
     }
 
     public void tickBurnDuration()
@@ -195,8 +192,7 @@ public class PlayerState // essentially, i want this class to be a getter class 
             burnTurnsRemaining--;
             if (burnTurnsRemaining <= 0)
             {
-                currentBurnStacks = 0; // clear stacks when duration expires
-                burnElement = Element.None; // clear element
+                currentBurnStacks = 0;
             }
         }
     }
@@ -208,14 +204,13 @@ public class PlayerState // essentially, i want this class to be a getter class 
         slowTurnsRemaining = 3; // refresh to 3 player turns
     }
 
-    public float GetSpeedTimeMultiplier()
+    public float getSpeedTimeMultiplier()
     {
         if (currentSlowStacks <= 0) return 1f;
-        // Hyperbolic diminishing returns: base*s / (1 + k*s)
         float basePerStack = 0.10f;
         float k = 0.5f;
         float effectiveSlow = basePerStack * currentSlowStacks / (1f + k * currentSlowStacks);
-        return 1f + effectiveSlow; // multiply base turn time by this
+        return 1f + effectiveSlow;
     }
 
     public void tickSlowDuration()
@@ -235,30 +230,22 @@ public class PlayerState // essentially, i want this class to be a getter class 
         onHealthChanged?.Invoke((float)currentHealth / (float)playerStats.baseMaxHealth);
     }
 
-    // Push Turn Icon System Methods (halves)
-    public void InitializePushTurnIcons()
+    public void initializePushTurnIcons()
     {
-        pushTurnHalves = 6; // 6 halves = 3 full equivalents
+        pushTurnHalves = 6;
         onPushTurnHalvesChanged?.Invoke(pushTurnHalves);
     }
 
-    public bool HasPushTurnIcons()
+    public bool hasPushTurnIcons()
     {
         return pushTurnHalves > 0;
     }
 
-    public void ConsumePushTurnIcons(int iconCost)
+    public void consumePushTurnIcons(int iconCost)
     {
-        // iconCost measured in halves. Can go negative; caller/game flow will end turn when none remain.
         if (iconCost <= 0) return;
 
         pushTurnHalves -= iconCost;
-
-        // If only 1 half remains and any action is taken, consume it (cost already applied above).
-        if (pushTurnHalves < 0)
-        {
-            // Allow negative to signal depletion; GameFlow checks HasPushTurnIcons on next loop.
-        }
 
         onPushTurnHalvesChanged?.Invoke(pushTurnHalves);
     }
