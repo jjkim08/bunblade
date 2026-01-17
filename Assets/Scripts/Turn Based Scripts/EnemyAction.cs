@@ -9,6 +9,8 @@ public class EnemyAction : MonoBehaviour
     public GameFlow gameManager;
     public event Action enemyTurnEnd;
     public event Action<float, Element> enemyDealDamage; // (damage, element)
+    public event Action<AttackData> enemyAttackDeclared; // declares the attack sequence
+    public event Action<EnemyState> onEnemyInitialized; // fired when enemy is ready
     public PlayerAction playerAction;
 
     public EnemyState currentEnemy;
@@ -43,6 +45,8 @@ public class EnemyAction : MonoBehaviour
         if (turnOwner == 0) return; // player turn
 
         currentEnemy = GameSession.gs.enemyMember;
+        // Notify UI listeners that enemy is initialized (for health bar subscription)
+        onEnemyInitialized?.Invoke(currentEnemy);
         ExecuteTurn();
     }
 
@@ -50,17 +54,35 @@ public class EnemyAction : MonoBehaviour
     {
         ApplyBurnDamage();
 
-        Element attackElement = Element.None;
-        enemyDealDamage?.Invoke(currentEnemy.calculateAttack(), attackElement);
+        // Pick a random attack from enemy's attack patterns
+        if (currentEnemy.enemyStats.attackPatterns.Count == 0)
+        {
+            return; // No attacks defined
+        }
 
-        int iconCost = currentEnemy.calculateIconCost(attackElement);
-        currentEnemy.consumePushTurnIcons(iconCost);
-        Debug.Log($"Enemy action consumed {iconCost} half-icons. Remaining halves: {currentEnemy.pushTurnHalves}");
+        EnemyStats.AttackPattern selectedPattern = currentEnemy.enemyStats.attackPatterns[UnityEngine.Random.Range(0, currentEnemy.enemyStats.attackPatterns.Count)];
 
-        // Tick debuff durations at end of turn
-        currentEnemy.tickBurnDuration();
-        currentEnemy.tickSlowDuration();
+        // Instantiate the attack with scaled damage
+        AttackData attack = currentEnemy.enemyStats.InstantiateAttack(selectedPattern, currentEnemy.calculateAttack() / Mathf.Max(1f, selectedPattern.hits.Count));
+        attack.iconCostHalves = currentEnemy.calculateIconCost(attack.element);
 
+        // Declare the attack; GameFlow will resolve parry windows and finalize the turn
+        enemyAttackDeclared?.Invoke(attack);
+    }
+
+    // Called by PlayerAction to apply resolved damage to the player
+    public void RaiseEnemyDealDamage(float damage, Element element)
+    {
+        enemyDealDamage?.Invoke(damage, element);
+    }
+
+    // Called by PlayerAction to consume icons, tick debuffs, and end the enemy turn
+    public void FinalizeAttack(AttackData attack)
+    {
+        var enemy = GameSession.gs.enemyMember;
+        enemy.consumePushTurnIcons(attack.iconCostHalves);
+        enemy.tickBurnDuration();
+        enemy.tickSlowDuration();
         enemyTurnEnd?.Invoke();
     }
 
@@ -70,7 +92,6 @@ public class EnemyAction : MonoBehaviour
         {
             float burnDamage = currentEnemy.calculateBurnDamage();
             currentEnemy.takeDamage(burnDamage, Element.Fire);
-            Debug.Log($"Enemy took {burnDamage} burn damage ({currentEnemy.currentBurnStacks} stacks, {currentEnemy.burnTurnsRemaining} turns remaining)");
         }
     }
 }

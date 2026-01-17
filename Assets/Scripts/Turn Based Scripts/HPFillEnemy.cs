@@ -6,18 +6,31 @@ using UnityEngine.UI;
 public class HPFillEnemy : MonoBehaviour
 {
     public Image HPBar;
-    public EnemyAction enemyAction;
+    private EnemyState currentEnemy;
+
     void OnEnable()
     {
-        // enemyAction.currentEnemy.onHealthChanged += updateBar;
+        // Subscribe to enemy health changes immediately (enemy is always available from GameSession)
+        if (GameSession.gs != null && GameSession.gs.enemyMember != null)
+        {
+            currentEnemy = GameSession.gs.enemyMember;
+            currentEnemy.onHealthChanged += updateBar;
+            // Initialize bar to current health
+            float healthPct = currentEnemy.currentHealth / Mathf.Max(1f, currentEnemy.enemyStats.baseMaxHealth);
+            updateBar(healthPct);
+        }
     }
 
     void OnDisable()
     {
-        // enemyAction.currentEnemy.onHealthChanged -= updateBar;
+        if (currentEnemy != null)
+        {
+            currentEnemy.onHealthChanged -= updateBar;
+        }
     }
 
-    void updateBar(float healthPercentage) {
-        HPBar.fillAmount = healthPercentage;
+    void updateBar(float healthPercentage)
+    {
+        if (HPBar != null) HPBar.fillAmount = healthPercentage;
     }
 }

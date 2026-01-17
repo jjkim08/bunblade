@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Linq;
 using battleEnum;
 using UnityEngine;
@@ -16,6 +17,8 @@ public class PlayerAction : MonoBehaviour
     public event Action<float, Element> dealDamage; // (damage, element)
 
     public EnemyAction enemyAction;
+    public ParryController parryController; // handles parry timings
+    public SpriteRenderer playerSprite; // assign in inspector
 
     public PlayerState currentPlayer;
 
@@ -24,6 +27,10 @@ public class PlayerAction : MonoBehaviour
         // adds the event listeners
         gameManager.turnChanged += myTurnInitialization;
         menuActions.playerActionFired += myTurnFinalization;
+        enemyAction.enemyAttackDeclared += OnEnemyAttackDeclared;
+
+        // Wire player sprite to parry controller for color feedback
+        parryController.playerSprite = playerSprite;
     }
 
     void OnDisable()
@@ -31,6 +38,7 @@ public class PlayerAction : MonoBehaviour
         // so that it doesn't add multiple times
         gameManager.turnChanged -= myTurnInitialization;
         menuActions.playerActionFired -= myTurnFinalization;
+        enemyAction.enemyAttackDeclared -= OnEnemyAttackDeclared;
     }
 
     public void addTriggers()
@@ -64,8 +72,38 @@ public class PlayerAction : MonoBehaviour
         {
             float burnDamage = currentPlayer.calculateBurnDamage();
             currentPlayer.takeDamage(burnDamage, Element.Fire);
-            Debug.Log($"Player took {burnDamage} burn damage ({currentPlayer.currentBurnStacks} stacks, {currentPlayer.burnTurnsRemaining} turns remaining)");
         }
+    }
+
+    // Enemy declared an attack; resolve parry windows and apply damage/mana, then finalize enemy turn
+    private void OnEnemyAttackDeclared(AttackData attack)
+    {
+        StartCoroutine(HandleEnemyAttack(attack));
+    }
+
+    private IEnumerator HandleEnemyAttack(AttackData attack)
+    {
+        yield return StartCoroutine(parryController.ResolveEnemyAttackWithParries(
+            attack,
+            onHitResolved: (ResolvedHit rh) =>
+            {
+                if (rh.grantMana)
+                {
+                    GameSession.gs.playerMember.gainMana(1);
+                }
+                enemyAction.RaiseEnemyDealDamage(rh.finalDamage, rh.element);
+            },
+            onAttackResolved: (AttackResolution res) =>
+            {
+                if (res.grantFullTurnIconNextTurn)
+                {
+                    GameSession.gs.playerMember.pendingBonusTurnIcons += 1;
+                }
+            }
+        ));
+
+        // After attack sequence: consume enemy icons and tick debuffs
+        enemyAction.FinalizeAttack(attack);
     }
 
     private void myTurnFinalization(string action)
@@ -80,8 +118,6 @@ public class PlayerAction : MonoBehaviour
 
             dealDamage?.Invoke(totalDamage, actionElement);
             currentPlayer.gainMana(1);
-            Debug.Log($"Player gained 1 mana from attack. Current: {currentPlayer.currentMana}/{PlayerState.MAX_MANA}");
-            print("Player dealt " + totalDamage + " damage with a basic attack.");
             // add a pause or something for attack animation to play
         }
         else if (currentPlayer.playerStats.spellInfo.Keys.ToList().Contains(action))
@@ -89,7 +125,6 @@ public class PlayerAction : MonoBehaviour
             // Check if player has enough mana
             if (!currentPlayer.canCastSpell(action))
             {
-                print("Not enough mana to cast " + action + "!");
                 return;
             }
 
@@ -99,7 +134,6 @@ public class PlayerAction : MonoBehaviour
 
             dealDamage?.Invoke(totalDamage, actionElement);
             currentPlayer.consumeMana(manaCost);
-            Debug.Log($"Player cast {action}, consumed {manaCost} mana. Remaining: {currentPlayer.currentMana}/{PlayerState.MAX_MANA}");
 
             // add a pause or something for spell animation to play
 
@@ -120,15 +154,14 @@ public class PlayerAction : MonoBehaviour
             {
                 currentPlayer.heal(currentPlayer.calculateHealAmount()); // heals ability power * 1.5 health
             }
-            else if (action == "Aquis")
-            {
-                applyDamageDebuff?.Invoke(currentPlayer.playerStats.spellInfo[action].appliedStacks); // deals 10% less damage
-            }
+            // else if (action == "Aquis")
+            // {
+            //     applyDamageDebuff?.Invoke(currentPlayer.playerStats.spellInfo[action].appliedStacks); // deals 10% less damage
+            // }
         }
 
         int iconCostHalves = currentPlayer.calculateIconCost(actionElement);
         currentPlayer.consumePushTurnIcons(iconCostHalves);
-        Debug.Log($"Player action consumed {iconCostHalves} half-icons. Remaining halves: {currentPlayer.pushTurnHalves}");
 
         // make items work later
 

@@ -14,8 +14,6 @@ public class Spell : ScriptableObject
 
     public float multiplier; // how much ability power is multiplied by
 
-    Action spellEffect;
-
     public Spell(string sN, string d, int mC, float m)
     {
         spellName = sN;

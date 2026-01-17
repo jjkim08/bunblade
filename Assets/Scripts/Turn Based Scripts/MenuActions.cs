@@ -112,7 +112,7 @@ public class MenuActions : MonoBehaviour
                 }
                 else
                 {
-                    print("Not enough mana!");
+
                 }
             }
             else if (currentMenuStack.Peek().SequenceEqual(itemMenu))

@@ -7,7 +7,6 @@ public class GameSession : MonoBehaviour
     [Header("1v1 Battle Configuration")]
     public PlayerStats playerStats;
     public EnemyStats enemyStats;
-    public GlobalPlayerData globalData; // persistent data shared across scenes
 
     [HideInInspector] public PlayerState playerMember;
     [HideInInspector] public EnemyState enemyMember;
@@ -31,22 +30,11 @@ public class GameSession : MonoBehaviour
     {
         if (playerStats == null || enemyStats == null)
         {
-            Debug.LogError("GameSession requires both playerStats and enemyStats to be assigned!");
             return;
         }
 
         playerMember = new PlayerState(playerStats);
-        float playerMaxHealth = playerStats.baseMaxHealth;
-        if (globalData != null)
-        {
-            playerMaxHealth = globalData.maxHealth;
-            globalData.currentHealth = Mathf.Clamp(globalData.currentHealth, 0, globalData.maxHealth);
-            playerMember.currentHealth = globalData.currentHealth;
-        }
-        else
-        {
-            playerMember.currentHealth = playerMaxHealth;
-        }
+        playerMember.currentHealth = playerStats.baseMaxHealth; // use maximum health
         playerMember.currentMana = 0;
         playerMember.initializePushTurnIcons();
 
@@ -55,10 +43,5 @@ public class GameSession : MonoBehaviour
         enemyMember.initializePushTurnIcons();
     }
 
-    public void syncPlayerToGlobal()
-    {
-        if (globalData == null) return;
-        float clamped = Mathf.Clamp(playerMember.currentHealth, 0, globalData.maxHealth);
-        globalData.currentHealth = clamped;
-    }
+
 }

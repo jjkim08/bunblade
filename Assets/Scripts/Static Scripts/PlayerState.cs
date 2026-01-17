@@ -29,6 +29,8 @@ public class PlayerState // essentially, i want this class to be a getter class 
     // Push Turn Icon System (halves only, 2 halves = 1 full)
     public int pushTurnHalves = 0;
     public event Action<int> onPushTurnHalvesChanged;
+    // Bonus full icons awarded (e.g., from perfect parries) to apply next player turn
+    public int pendingBonusTurnIcons = 0;
 
     // Burn tracking: total stacks and remaining turns
     public int currentBurnStacks = 0;

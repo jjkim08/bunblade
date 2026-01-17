@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Unity.Profiling;
 using System.Runtime.InteropServices;
+using battleEnum;
 
 public class EnemyState
 {
@@ -69,8 +70,6 @@ public class EnemyState
         currentHealth -= (float)(damage * 0.01f * (100f - damageReduction(enemyStats.baseDefense)));
         onHealthChanged?.Invoke((float)currentHealth / (float)enemyStats.baseMaxHealth);
 
-        Debug.Log("Enemy " + enemyStats.id + " took " + damage + " damage." +
-            " Current Health: " + currentHealth + "/" + enemyStats.baseMaxHealth);
     }
 
     public void takeSlow(int slowStacks)
