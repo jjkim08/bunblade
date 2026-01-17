@@ -106,7 +106,7 @@ public class PlayerAction : MonoBehaviour
             // also, apply spell effects here
             if (action == "Ignia")
             {
-                applyBurn?.Invoke(currentPlayer.playerStats.spellInfo[action].appliedStacks); // 2 stacks of burn
+                applyBurn?.Invoke(currentPlayer.playerStats.spellInfo[action].appliedStacks);
             }
             else if (action == "Glacia")
             {
