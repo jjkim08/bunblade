@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 84cb57fe5818b494d95f9696e93780c9, type: 3}
-  m_Name: Goblin
+  m_Name: Ghoul
   m_EditorClassIdentifier: 
   id: 11
   baseMaxHealth: 140
@@ -19,3 +19,26 @@ MonoBehaviour:
   baseDefense: 3
   baseSpeed: 90
   baseluck: 7
+  weaknesses: 
+  resistances: 
+  attackPatterns:
+  - attackName: 2-Hit
+    element: 0
+    isParryable: 1
+    hits:
+    - baseDamage: 10
+      windupSeconds: 1
+      parryWindowSeconds: 0.1
+      parryable: 1
+    - baseDamage: 15
+      windupSeconds: 1.5
+      parryWindowSeconds: 0.1
+      parryable: 1
+  - attackName: Ignia
+    element: 1
+    isParryable: 1
+    hits:
+    - baseDamage: 10
+      windupSeconds: 1.5
+      parryWindowSeconds: 0.1
+      parryable: 1
