@@ -7,9 +7,5 @@ public enum Element
     Fire,
     Ice,
     Water,
-    Earth,
-    Wind,
-    Lightning,
-    Light,
-    Dark
+    Earth
 }

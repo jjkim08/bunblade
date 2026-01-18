@@ -32,6 +32,10 @@ public class EnemyState
     public int currentSlowStacks = 0;
     public int slowTurnsRemaining = 0;
 
+    // Damage debuff tracking (Aquis): total stacks and remaining turns
+    public int currentDamageDebuffStacks = 0;
+    public int damageDebuffTurnsRemaining = 0;
+
     public EnemyStats enemyStats;
 
     // make one for animations
@@ -103,6 +107,35 @@ public class EnemyState
         }
     }
 
+    // Damage debuff: adds stacks and refreshes duration to 2 enemy turns (same as slow)
+    public void takeDamageDebuff(int debuffStacks)
+    {
+        currentDamageDebuffStacks += debuffStacks;
+        damageDebuffTurnsRemaining = 2;
+    }
+
+    private float getDamageDebuffMultiplier()
+    {
+        if (currentDamageDebuffStacks <= 0) return 1f;
+        float basePerStack = 0.10f;
+        float k = 0.5f;
+        float effectiveReduction = basePerStack * currentDamageDebuffStacks / (1f + k * currentDamageDebuffStacks);
+        float multiplier = 1f - effectiveReduction;
+        return Mathf.Clamp(multiplier, 0.4f, 1f); // prevent zeroing out damage; floor at 40%
+    }
+
+    public void tickDamageDebuffDuration()
+    {
+        if (damageDebuffTurnsRemaining > 0)
+        {
+            damageDebuffTurnsRemaining--;
+            if (damageDebuffTurnsRemaining <= 0)
+            {
+                currentDamageDebuffStacks = 0;
+            }
+        }
+    }
+
     public float calculateAttack()
     {
         float totalDamage = enemyStats.baseAttackDamage;
@@ -111,6 +144,10 @@ public class EnemyState
         {
             totalDamage *= (float)1.5;
         }
+
+        // Apply damage reduction debuff (Aquis) using same diminishing scaling as slow
+        float damageMultiplier = getDamageDebuffMultiplier();
+        totalDamage *= damageMultiplier;
 
         return totalDamage;
     }

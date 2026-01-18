@@ -19,8 +19,8 @@ MonoBehaviour:
   baseDefense: 3
   baseSpeed: 90
   baseluck: 7
-  weaknesses: 
-  resistances: 
+  weaknesses: 01000000
+  resistances: 00000000
   attackPatterns:
   - attackName: 2-Hit
     element: 0

@@ -30,6 +30,7 @@ public class EnemyAction : MonoBehaviour
         playerAction.dealDamage += GameSession.gs.enemyMember.takeDamage;
         playerAction.applyBurn += GameSession.gs.enemyMember.takeBurn;
         playerAction.applySlow += GameSession.gs.enemyMember.takeSlow;
+        playerAction.applyDamageDebuff += GameSession.gs.enemyMember.takeDamageDebuff;
     }
 
     public void removeTriggers()
@@ -38,6 +39,7 @@ public class EnemyAction : MonoBehaviour
         playerAction.dealDamage -= GameSession.gs.enemyMember.takeDamage;
         playerAction.applyBurn -= GameSession.gs.enemyMember.takeBurn;
         playerAction.applySlow -= GameSession.gs.enemyMember.takeSlow;
+        playerAction.applyDamageDebuff -= GameSession.gs.enemyMember.takeDamageDebuff;
     }
 
     private void myTurnStart(int turnOwner)
@@ -83,6 +85,7 @@ public class EnemyAction : MonoBehaviour
         enemy.consumePushTurnIcons(attack.iconCostHalves);
         enemy.tickBurnDuration();
         enemy.tickSlowDuration();
+        enemy.tickDamageDebuffDuration();
         enemyTurnEnd?.Invoke();
     }
 

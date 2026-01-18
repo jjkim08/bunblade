@@ -4,16 +4,12 @@ public class GameSession : MonoBehaviour
 {
     public static GameSession gs { get; private set; }
 
-    [Header("1v1 Battle Configuration")]
-    public PlayerStats playerStats;
-    public EnemyStats enemyStats;
-
     [HideInInspector] public PlayerState playerMember;
     [HideInInspector] public EnemyState enemyMember;
+    private SaveSystem saveSystem;
 
     void Awake()
     {
-        // Singleton pattern
         if (gs != null)
         {
             Destroy(gameObject);
@@ -23,25 +19,47 @@ public class GameSession : MonoBehaviour
         gs = this;
         DontDestroyOnLoad(gameObject);
 
-        initializeCombatants();
+        saveSystem = GetComponent<SaveSystem>();
+        if (saveSystem == null)
+            saveSystem = gameObject.AddComponent<SaveSystem>();
+
+        InitializePlayer();
     }
 
-    private void initializeCombatants()
+    private void InitializePlayer()
     {
-        if (playerStats == null || enemyStats == null)
+        if (playerMember == null)
         {
-            return;
+            playerMember = new PlayerState(null);
+
+            PlayerSaveData saved = saveSystem.LoadPlayer();
+            if (saved != null)
+            {
+                playerMember.currentHealth = saved.currentHealth;
+            }
+            else
+            {
+                // there is no save, todo: laterrrrr
+            }
+
+            playerMember.currentMana = 3;
+            playerMember.initializePushTurnIcons();
         }
+    }
 
-        playerMember = new PlayerState(playerStats);
-        playerMember.currentHealth = playerStats.baseMaxHealth; // use maximum health
-        playerMember.currentMana = 0;
-        playerMember.initializePushTurnIcons();
+    public void InitializeBattle(EnemyStats enemyToFight)
+    {
+        if (enemyToFight == null)
+            return;
 
-        enemyMember = new EnemyState(enemyStats);
-        enemyMember.currentHealth = enemyStats.baseMaxHealth;
+        enemyMember = new EnemyState(enemyToFight);
+        enemyMember.currentHealth = enemyToFight.baseMaxHealth;
         enemyMember.initializePushTurnIcons();
     }
 
+    public void SaveGame()
+    {
+        saveSystem.SavePlayer(playerMember);
+    }
 
 }

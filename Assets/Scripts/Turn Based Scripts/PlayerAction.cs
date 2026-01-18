@@ -154,10 +154,10 @@ public class PlayerAction : MonoBehaviour
             {
                 currentPlayer.heal(currentPlayer.calculateHealAmount()); // heals ability power * 1.5 health
             }
-            // else if (action == "Aquis")
-            // {
-            //     applyDamageDebuff?.Invoke(currentPlayer.playerStats.spellInfo[action].appliedStacks); // deals 10% less damage
-            // }
+            else if (action == "Aquis")
+            {
+                applyDamageDebuff?.Invoke(currentPlayer.playerStats.spellInfo[action].appliedStacks); // deals 10% less damage
+            }
         }
 
         int iconCostHalves = currentPlayer.calculateIconCost(actionElement);
