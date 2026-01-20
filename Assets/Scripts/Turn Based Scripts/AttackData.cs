@@ -7,9 +7,8 @@ public class AttackHitData
 {
     public float baseDamage;
     public bool parryable = true;
-    public float windupSeconds = 0.3f; // time before the window opens
-    public float parryWindowSeconds = 0.2f; // active parry window length
-    // Optional: explicit hit timestamp after window; here we assume hit lands right after window
+    public float windupSeconds = 0.3f; // default values
+    public float parryWindowSeconds = 0.2f;
 }
 
 public class AttackData
@@ -19,7 +18,6 @@ public class AttackData
     public List<AttackHitData> hits = new List<AttackHitData>();
     public bool isParryable = true;
 
-    // Optional metadata used during resolution/turn handling
     public int iconCostHalves = 0; // how many halves to consume for this attack
 }
 
@@ -46,3 +44,4 @@ public class AttackResolution
     public bool allHitsParried;
     public bool grantFullTurnIconNextTurn;
 }
+
