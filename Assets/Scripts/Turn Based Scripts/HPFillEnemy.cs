@@ -8,9 +8,8 @@ public class HPFillEnemy : MonoBehaviour
     public Image HPBar;
     private EnemyState currentEnemy;
 
-    void OnEnable()
+    void Start()
     {
-        // Subscribe to enemy health changes immediately (enemy is always available from GameSession)
         if (GameSession.gs != null && GameSession.gs.enemyMember != null)
         {
             currentEnemy = GameSession.gs.enemyMember;

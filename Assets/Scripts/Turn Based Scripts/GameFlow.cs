@@ -28,6 +28,7 @@ public class GameFlow : MonoBehaviour
 
     void Start()
     {
+
         int playerTime = determineSpeedCoefficient(GameSession.gs.playerMember.playerStats.baseSpeed);
         int enemyTime = determineSpeedCoefficient(GameSession.gs.enemyMember.enemyStats.baseSpeed);
 
@@ -41,14 +42,10 @@ public class GameFlow : MonoBehaviour
         playerAction.addTriggers();
         enemyAction.addTriggers();
 
-
-        continueGameFlow();
-    }
-
-    void OnEnable()
-    {
         playerAction.playerTurnEnd += continueGameFlow;
         enemyAction.enemyTurnEnd += continueGameFlow;
+
+        continueGameFlow();
     }
 
     void OnDisable()

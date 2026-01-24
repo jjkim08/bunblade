@@ -46,7 +46,6 @@ public class MenuActions : MonoBehaviour
     {
         currentPlayer = GameSession.gs.playerMember;
 
-        // Build spell menu
         spellMenu = currentPlayer.playerStats.spellInfo.Keys.ToList();
 
         // Build main menu dynamically based on available options
@@ -69,6 +68,8 @@ public class MenuActions : MonoBehaviour
         currentMenuStack.Push(mainMenu);
         currentSelection = 0;
         menuChanged?.Invoke(mainMenu);
+
+        print("show menu");
 
         gameObject.SetActive(show);
     }

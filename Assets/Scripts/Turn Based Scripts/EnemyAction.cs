@@ -15,7 +15,7 @@ public class EnemyAction : MonoBehaviour
 
     public EnemyState currentEnemy;
 
-    void OnEnable()
+    void Start()
     {
         gameManager.turnChanged += myTurnStart;
     }
@@ -64,8 +64,8 @@ public class EnemyAction : MonoBehaviour
 
         EnemyStats.AttackPattern selectedPattern = currentEnemy.enemyStats.attackPatterns[UnityEngine.Random.Range(0, currentEnemy.enemyStats.attackPatterns.Count)];
 
-        // Instantiate the attack with scaled damage
-        AttackData attack = currentEnemy.enemyStats.InstantiateAttack(selectedPattern, currentEnemy.calculateAttack() / Mathf.Max(1f, selectedPattern.hits.Count));
+        // Instantiate the attack with total damage (division by hit count happens in InstantiateAttack)
+        AttackData attack = currentEnemy.enemyStats.InstantiateAttack(selectedPattern, currentEnemy.calculateAttack());
         attack.iconCostHalves = currentEnemy.calculateIconCost(attack.element);
 
         // Declare the attack; GameFlow will resolve parry windows and finalize the turn

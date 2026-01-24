@@ -1,11 +1,17 @@
 using UnityEngine;
 
-public class GameSession : MonoBehaviour
+/*
+// TESTING VERSION - Commented out for now
+public class GameSessionTesting : MonoBehaviour
 {
     public static GameSession gs { get; private set; }
 
     [HideInInspector] public PlayerState playerMember;
     [HideInInspector] public EnemyState enemyMember;
+
+    [SerializeField] private EnemyStats demoEnemyForTesting;
+    [SerializeField] private PlayerStats demoPlayerStats;
+
     private SaveSystem saveSystem;
 
     void Awake()
@@ -23,14 +29,19 @@ public class GameSession : MonoBehaviour
         if (saveSystem == null)
             saveSystem = gameObject.AddComponent<SaveSystem>();
 
+        // TODO: Remove this line when done testing
         InitializePlayer();
+
+        // TODO: Remove this line when done testing
+        if (demoEnemyForTesting != null)
+            InitializeBattle(demoEnemyForTesting);
     }
 
     private void InitializePlayer()
     {
         if (playerMember == null)
         {
-            playerMember = new PlayerState(null);
+            playerMember = new PlayerState(demoPlayerStats);
 
             PlayerSaveData saved = saveSystem.LoadPlayer();
             if (saved != null)
@@ -61,5 +72,58 @@ public class GameSession : MonoBehaviour
     {
         saveSystem.SavePlayer(playerMember);
     }
+}
+*/
 
+// ORIGINAL VERSION - Restored
+public class GameSession : MonoBehaviour
+{
+    public static GameSession gs { get; private set; }
+
+    [SerializeField] public PlayerStats demoPlayerStats;
+    [SerializeField] public EnemyStats demoEnemyStats;
+
+    [HideInInspector] public PlayerState playerMember;
+    [HideInInspector] public EnemyState enemyMember;
+
+    void Awake()
+    {
+        if (gs != null)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        gs = this;
+        DontDestroyOnLoad(gameObject);
+
+        InitializePlayer();
+        InitializeEnemy();
+    }
+
+    private void InitializePlayer()
+    {
+        if (playerMember == null)
+        {
+            playerMember = new PlayerState(demoPlayerStats);
+            playerMember.currentHealth = demoPlayerStats.baseMaxHealth;
+            playerMember.currentMana = 3;
+            playerMember.initializePushTurnIcons();
+        }
+    }
+
+    public void InitializeEnemy()
+    {
+        if (enemyMember == null)
+        {
+            enemyMember = new EnemyState(demoEnemyStats);
+            enemyMember.currentHealth = demoEnemyStats.baseMaxHealth;
+            enemyMember.initializePushTurnIcons();
+        }
+    }
+
+    public void SaveGame()
+    {
+        // Save system disabled for now
+    }
 }

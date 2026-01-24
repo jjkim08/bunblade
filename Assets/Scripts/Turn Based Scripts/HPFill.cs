@@ -8,7 +8,7 @@ public class HPFill : MonoBehaviour
     public Image HPBar;
     private PlayerState currentPlayer;
 
-    void OnEnable()
+    void Start()
     {
         // Subscribe to player health changes (player is always available from GameSession)
         if (GameSession.gs != null && GameSession.gs.playerMember != null)

@@ -31,13 +31,13 @@ public class ParryController : MonoBehaviour
     public IEnumerator parryStages(AttackData attack, Action<ResolvedHit> onHitResolved, Action<AttackResolution> onAttackResolved) {
     
         allHitsParried = true;
-        SetSpriteColor(idleColor);
+        setSpriteColor(idleColor);
 
         foreach (var hit in attack.hits)
         {
             float t = 0f;
             bool early = false;
-            SetSpriteColor(windupColor);
+            setSpriteColor(windupColor);
             while (t < hit.windupSeconds)
             {
                 if (!early)
@@ -46,7 +46,7 @@ public class ParryController : MonoBehaviour
                     {
                         early = true;
                         downtimeUntil = Time.time + downtimeSeconds;
-                        SetSpriteColor(cooldownColor);
+                        setSpriteColor(cooldownColor);
                     }
                 }
                 t += Time.deltaTime;
@@ -55,7 +55,7 @@ public class ParryController : MonoBehaviour
             
             bool success = false;
             float windowT = 0f;
-            SetSpriteColor(IsInDowntime ? cooldownColor : parryWindowColor);
+            setSpriteColor(IsInDowntime ? cooldownColor : parryWindowColor);
             
             while (windowT < hit.parryWindowSeconds)
             {
@@ -64,7 +64,7 @@ public class ParryController : MonoBehaviour
                     if (Input.GetKeyDown(KeyCode.Space))
                     {
                         success = true;
-                        SetSpriteColor(parryWindowColor);
+                        setSpriteColor(parryWindowColor);
                     }
                 }
                 windowT += Time.deltaTime;
@@ -73,7 +73,7 @@ public class ParryController : MonoBehaviour
 
             bool late = false;
             float lateT = 0f;
-            SetSpriteColor(IsInDowntime ? cooldownColor : idleColor);
+            setSpriteColor(IsInDowntime ? cooldownColor : idleColor);
             while (!success && !early && lateT < postWindowLateThreshold)
             {
                 if (Input.GetKeyDown(KeyCode.Space))
@@ -98,7 +98,7 @@ public class ParryController : MonoBehaviour
             else if (early)
             {
                 result = ParryResult.Early;
-                damageMultiplier = IsInDowntime ? 1.25f : 1f
+                damageMultiplier = IsInDowntime ? 1.25f : 1f;
             }
             else if (late)
             {
@@ -127,7 +127,7 @@ public class ParryController : MonoBehaviour
 
             onHitResolved?.Invoke(resolved);
 
-            SetSpriteColor(IsInDowntime ? cooldownColor : idleColor);
+            setSpriteColor(IsInDowntime ? cooldownColor : idleColor);
         }
 
         var attackRes = new AttackResolution
@@ -138,7 +138,7 @@ public class ParryController : MonoBehaviour
 
         onAttackResolved?.Invoke(attackRes);
 
-        SetSpriteColor(idleColor);
+        setSpriteColor(idleColor);
     }
 }
 

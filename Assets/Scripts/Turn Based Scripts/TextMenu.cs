@@ -10,7 +10,8 @@ public class TextMenu : MonoBehaviour
     public MenuActions menuActions;
 
     public TMP_Text menuText;
-    void OnEnable()
+
+    void Awake()
     {
         menuActions.menuChanged += updateMenu;
     }

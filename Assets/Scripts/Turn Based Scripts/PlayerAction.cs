@@ -22,7 +22,7 @@ public class PlayerAction : MonoBehaviour
 
     public PlayerState currentPlayer;
 
-    void OnEnable()
+    void Start()
     {
         // adds the event listeners
         gameManager.turnChanged += myTurnInitialization;
@@ -58,6 +58,7 @@ public class PlayerAction : MonoBehaviour
     private void myTurnInitialization(int turnOwner)
     {
         if (turnOwner == 1) return; // enemy turn
+        print("my turn");
 
         currentPlayer = GameSession.gs.playerMember;
 
@@ -83,7 +84,7 @@ public class PlayerAction : MonoBehaviour
 
     private IEnumerator HandleEnemyAttack(AttackData attack)
     {
-        yield return StartCoroutine(parryController.ResolveEnemyAttackWithParries(
+        yield return StartCoroutine(parryController.parryStages(
             attack,
             onHitResolved: (ResolvedHit rh) =>
             {
@@ -108,6 +109,7 @@ public class PlayerAction : MonoBehaviour
 
     private void myTurnFinalization(string action)
     {
+        menuDisplay?.Invoke(false);
         // a menu action has been chosen
         Element actionElement = Element.None;
 

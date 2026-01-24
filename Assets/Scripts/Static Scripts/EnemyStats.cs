@@ -7,7 +7,6 @@ using battleEnum;
 [System.Serializable]
 public class AttackHitInfo
 {
-    public float baseDamage;
     public float windupSeconds = 0.25f;
     public float parryWindowSeconds = 0.18f;
     public bool parryable = true;
@@ -42,7 +41,7 @@ public class EnemyStats : ScriptableObject
     public List<AttackPattern> attackPatterns = new List<AttackPattern>();
 
     // Instantiate an AttackData from a stored attack pattern
-    public AttackData InstantiateAttack(AttackPattern pattern, float damageMultiplier = 1f)
+    public AttackData InstantiateAttack(AttackPattern pattern, float totalAttackDamage)
     {
         var attackData = new AttackData
         {
@@ -52,11 +51,14 @@ public class EnemyStats : ScriptableObject
             hits = new List<AttackHitData>()
         };
 
+        // Divide total attack damage across all hits
+        float damagePerHit = totalAttackDamage / Mathf.Max(1f, pattern.hits.Count);
+
         foreach (var hit in pattern.hits)
         {
             attackData.hits.Add(new AttackHitData
             {
-                baseDamage = hit.baseDamage * damageMultiplier,
+                baseDamage = damagePerHit,
                 parryable = hit.parryable,
                 windupSeconds = hit.windupSeconds,
                 parryWindowSeconds = hit.parryWindowSeconds
