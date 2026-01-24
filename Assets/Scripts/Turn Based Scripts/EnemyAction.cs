@@ -17,16 +17,24 @@ public class EnemyAction : MonoBehaviour
 
     void Start()
     {
-        gameManager.turnChanged += myTurnStart;
+        if (gameManager != null)
+        {
+            gameManager.turnChanged += myTurnStart;
+        }
     }
 
     void OnDisable()
     {
-        gameManager.turnChanged -= myTurnStart;
+        if (gameManager != null)
+        {
+            gameManager.turnChanged -= myTurnStart;
+        }
     }
 
     public void addTriggers()
     {
+        if (playerAction == null || GameSession.gs == null || GameSession.gs.enemyMember == null) return;
+
         playerAction.dealDamage += GameSession.gs.enemyMember.takeDamage;
         playerAction.applyBurn += GameSession.gs.enemyMember.takeBurn;
         playerAction.applySlow += GameSession.gs.enemyMember.takeSlow;
@@ -35,7 +43,8 @@ public class EnemyAction : MonoBehaviour
 
     public void removeTriggers()
     {
-        enemyDealDamage = null;
+        if (playerAction == null || GameSession.gs == null || GameSession.gs.enemyMember == null) return;
+
         playerAction.dealDamage -= GameSession.gs.enemyMember.takeDamage;
         playerAction.applyBurn -= GameSession.gs.enemyMember.takeBurn;
         playerAction.applySlow -= GameSession.gs.enemyMember.takeSlow;
@@ -46,6 +55,8 @@ public class EnemyAction : MonoBehaviour
     {
         if (turnOwner == 0) return; // player turn
 
+        if (GameSession.gs == null || GameSession.gs.enemyMember == null) return;
+
         currentEnemy = GameSession.gs.enemyMember;
         // Notify UI listeners that enemy is initialized (for health bar subscription)
         onEnemyInitialized?.Invoke(currentEnemy);
@@ -54,10 +65,12 @@ public class EnemyAction : MonoBehaviour
 
     private void ExecuteTurn()
     {
+        if (currentEnemy == null) return;
+
         ApplyBurnDamage();
 
         // Pick a random attack from enemy's attack patterns
-        if (currentEnemy.enemyStats.attackPatterns.Count == 0)
+        if (currentEnemy.enemyStats == null || currentEnemy.enemyStats.attackPatterns == null || currentEnemy.enemyStats.attackPatterns.Count == 0)
         {
             return; // No attacks defined
         }
@@ -82,7 +95,11 @@ public class EnemyAction : MonoBehaviour
     public void FinalizeAttack(AttackData attack)
     {
         var enemy = GameSession.gs.enemyMember;
-        enemy.consumePushTurnIcons(attack.iconCostHalves);
+        if (enemy == null) return;
+
+        int iconCost = attack != null ? attack.iconCostHalves : 0;
+
+        enemy.consumePushTurnIcons(iconCost);
         enemy.tickBurnDuration();
         enemy.tickSlowDuration();
         enemy.tickDamageDebuffDuration();
@@ -91,7 +108,7 @@ public class EnemyAction : MonoBehaviour
 
     private void ApplyBurnDamage()
     {
-        if (currentEnemy.currentBurnStacks > 0)
+        if (currentEnemy != null && currentEnemy.currentBurnStacks > 0)
         {
             float burnDamage = currentEnemy.calculateBurnDamage();
             currentEnemy.takeDamage(burnDamage, Element.Fire);

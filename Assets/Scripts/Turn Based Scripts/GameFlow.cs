@@ -18,25 +18,48 @@ public class GameFlow : MonoBehaviour
     private SortedList<(int time, int actor), int> turnOrder = new SortedList<(int time, int actor), int>();
     // key: (time, actor), value: actor (0 = player, 1 = enemy)
 
-    private Dictionary<int, int> speedByActor = new Dictionary<int, int>();
-    // actor : speed hashmap
-
     private int determineSpeedCoefficient(int speed)
     {
+        if (speed <= 0) return 10000;
         return (int)((float)1 / speed * 10000); // makes the usable speed out of a speed value
+    }
+
+    private int getActorTime(int actor)
+    {
+        if (actor == 0)
+        {
+            var player = GameSession.gs != null ? GameSession.gs.playerMember : null;
+            if (player != null)
+            {
+                int baseTime = determineSpeedCoefficient(player.playerStats.baseSpeed);
+                int adjusted = Mathf.CeilToInt(baseTime * player.getSpeedTimeMultiplier());
+                return adjusted > 0 ? adjusted : 1;
+            }
+        }
+        else
+        {
+            var enemy = GameSession.gs != null ? GameSession.gs.enemyMember : null;
+            if (enemy != null)
+            {
+                int baseTime = determineSpeedCoefficient(enemy.enemyStats.baseSpeed);
+                int adjusted = Mathf.CeilToInt(baseTime * enemy.getSpeedTimeMultiplier());
+                return adjusted > 0 ? adjusted : 1;
+            }
+        }
+
+        return 1;
     }
 
     void Start()
     {
+        if (GameSession.gs == null || GameSession.gs.playerMember == null || GameSession.gs.enemyMember == null) return;
+        if (playerAction == null || enemyAction == null) return;
 
-        int playerTime = determineSpeedCoefficient(GameSession.gs.playerMember.playerStats.baseSpeed);
-        int enemyTime = determineSpeedCoefficient(GameSession.gs.enemyMember.enemyStats.baseSpeed);
+        int playerTime = getActorTime(0);
+        int enemyTime = getActorTime(1);
 
         turnOrder.Add((playerTime, 0), 0);
         turnOrder.Add((enemyTime, 1), 1);
-
-        speedByActor[0] = playerTime;
-        speedByActor[1] = enemyTime;
 
         // add triggers
         playerAction.addTriggers();
@@ -50,20 +73,38 @@ public class GameFlow : MonoBehaviour
 
     void OnDisable()
     {
-        playerAction.playerTurnEnd -= continueGameFlow;
-        enemyAction.enemyTurnEnd -= continueGameFlow;
+        if (playerAction != null)
+        {
+            playerAction.playerTurnEnd -= continueGameFlow;
+        }
+        if (enemyAction != null)
+        {
+            enemyAction.enemyTurnEnd -= continueGameFlow;
+        }
     }
 
     private void cleanupTriggers()
     {
-        playerAction.removeTriggers();
-        enemyAction.removeTriggers();
+        if (playerAction != null)
+        {
+            playerAction.removeTriggers();
+        }
+        if (enemyAction != null)
+        {
+            enemyAction.removeTriggers();
+        }
     }
 
 
     private void continueGameFlow()
     {
         // check if battle is over
+        if (GameSession.gs == null || GameSession.gs.playerMember == null || GameSession.gs.enemyMember == null)
+        {
+            EndBattle();
+            return;
+        }
+
         if (GameSession.gs.playerMember.currentHealth <= 0 || GameSession.gs.enemyMember.currentHealth <= 0)
         {
             EndBattle();
@@ -92,12 +133,10 @@ public class GameFlow : MonoBehaviour
         if (turnOrder.Count == 0)
         {
             // Rebuild schedule if empty (safety)
-            int playerTime = determineSpeedCoefficient(GameSession.gs.playerMember.playerStats.baseSpeed);
-            int enemyTime = determineSpeedCoefficient(GameSession.gs.enemyMember.enemyStats.baseSpeed);
+            int playerTime = getActorTime(0);
+            int enemyTime = getActorTime(1);
             turnOrder.Add((playerTime, 0), 0);
             turnOrder.Add((enemyTime, 1), 1);
-            speedByActor[0] = playerTime;
-            speedByActor[1] = enemyTime;
         }
 
         var nextKey = turnOrder.Keys[0];
@@ -117,6 +156,7 @@ public class GameFlow : MonoBehaviour
                 int bonus = pState.pendingBonusTurnIcons;
                 pState.pushTurnHalves += bonus * 2; // 1 full icon = 2 halves
                 pState.pendingBonusTurnIcons = 0;
+                pState.onPushTurnHalvesChanged?.Invoke(pState.pushTurnHalves);
             }
         }
         else
@@ -125,7 +165,7 @@ public class GameFlow : MonoBehaviour
         }
 
         // Reschedule this unit's next turn
-        turnOrder.Add((time + speedByActor[actor], actor), actor);
+        turnOrder.Add((time + getActorTime(actor), actor), actor);
 
         turnChanged?.Invoke(actor);
     }

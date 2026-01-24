@@ -61,9 +61,9 @@ public class EnemyState
 
     public int calculateIconCost(Element attackElement)
     {
-        PlayerState player = GameSession.gs.playerMember;
-        if (attackElement != Element.None && player.playerStats.weaknesses.Contains(attackElement)) return 1;
-        if (attackElement != Element.None && player.playerStats.resistances.Contains(attackElement)) return 3;
+        PlayerState player = GameSession.gs != null ? GameSession.gs.playerMember : null;
+        if (player != null && player.playerStats != null && attackElement != Element.None && player.playerStats.weaknesses.Contains(attackElement)) return 1;
+        if (player != null && player.playerStats != null && attackElement != Element.None && player.playerStats.resistances.Contains(attackElement)) return 3;
         return 2;
     }
 
@@ -72,6 +72,10 @@ public class EnemyState
         damage *= elementalMultiplier(element);
 
         currentHealth -= (float)(damage * 0.01f * (100f - damageReduction(enemyStats.baseDefense)));
+        if (currentHealth < 0)
+        {
+            currentHealth = 0;
+        }
         onHealthChanged?.Invoke((float)currentHealth / (float)enemyStats.baseMaxHealth);
 
     }
@@ -199,6 +203,11 @@ public class EnemyState
         if (iconCost <= 0) return;
 
         pushTurnHalves -= iconCost;
+
+        if (pushTurnHalves < 0)
+        {
+            pushTurnHalves = 0;
+        }
 
         onPushTurnHalvesChanged?.Invoke(pushTurnHalves);
     }

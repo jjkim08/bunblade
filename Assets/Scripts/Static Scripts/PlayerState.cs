@@ -66,9 +66,9 @@ public class PlayerState // essentially, i want this class to be a getter class 
 
     public int calculateIconCost(Element attackElement)
     {
-        EnemyState enemy = GameSession.gs.enemyMember;
-        if (attackElement != Element.None && enemy.enemyStats.weaknesses.Contains(attackElement)) return 1;
-        if (attackElement != Element.None && enemy.enemyStats.resistances.Contains(attackElement)) return 3;
+        EnemyState enemy = GameSession.gs != null ? GameSession.gs.enemyMember : null;
+        if (enemy != null && enemy.enemyStats != null && attackElement != Element.None && enemy.enemyStats.weaknesses.Contains(attackElement)) return 1;
+        if (enemy != null && enemy.enemyStats != null && attackElement != Element.None && enemy.enemyStats.resistances.Contains(attackElement)) return 3;
         return 2;
     }
 
@@ -79,7 +79,7 @@ public class PlayerState // essentially, i want this class to be a getter class 
         // shields absorb 100% damage but aren't affected by damage reduction, ex 30 damage will deal 30 damage to shield
         // todo: make a shield bar
 
-        if (currentShield >= 0)
+        if (currentShield > 0)
         {
             currentShield -= damage;
             if (currentShield < 0)
@@ -94,6 +94,10 @@ public class PlayerState // essentially, i want this class to be a getter class 
         }
 
         currentHealth -= (int)(damage * 0.01 * (100 - damageReduction(playerStats.baseDefense)));
+        if (currentHealth < 0)
+        {
+            currentHealth = 0;
+        }
         onHealthChanged?.Invoke((float)currentHealth / (float)playerStats.baseMaxHealth);
     }
 
@@ -248,6 +252,10 @@ public class PlayerState // essentially, i want this class to be a getter class 
         if (iconCost <= 0) return;
 
         pushTurnHalves -= iconCost;
+        if (pushTurnHalves < 0)
+        {
+            pushTurnHalves = 0;
+        }
 
         onPushTurnHalvesChanged?.Invoke(pushTurnHalves);
     }

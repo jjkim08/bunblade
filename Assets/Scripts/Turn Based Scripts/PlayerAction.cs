@@ -25,33 +25,54 @@ public class PlayerAction : MonoBehaviour
     void Start()
     {
         // adds the event listeners
-        gameManager.turnChanged += myTurnInitialization;
-        menuActions.playerActionFired += myTurnFinalization;
-        enemyAction.enemyAttackDeclared += OnEnemyAttackDeclared;
+        if (gameManager != null)
+        {
+            gameManager.turnChanged += myTurnInitialization;
+        }
+        if (menuActions != null)
+        {
+            menuActions.playerActionFired += myTurnFinalization;
+        }
+        if (enemyAction != null)
+        {
+            enemyAction.enemyAttackDeclared += OnEnemyAttackDeclared;
+        }
 
         // Wire player sprite to parry controller for color feedback
-        parryController.playerSprite = playerSprite;
+        if (parryController != null)
+        {
+            parryController.playerSprite = playerSprite;
+        }
     }
 
     void OnDisable()
     {
         // so that it doesn't add multiple times
-        gameManager.turnChanged -= myTurnInitialization;
-        menuActions.playerActionFired -= myTurnFinalization;
-        enemyAction.enemyAttackDeclared -= OnEnemyAttackDeclared;
+        if (gameManager != null)
+        {
+            gameManager.turnChanged -= myTurnInitialization;
+        }
+        if (menuActions != null)
+        {
+            menuActions.playerActionFired -= myTurnFinalization;
+        }
+        if (enemyAction != null)
+        {
+            enemyAction.enemyAttackDeclared -= OnEnemyAttackDeclared;
+        }
     }
 
     public void addTriggers()
     {
+        if (enemyAction == null || GameSession.gs == null || GameSession.gs.playerMember == null) return;
+
         enemyAction.enemyDealDamage += GameSession.gs.playerMember.takeDamage;
     }
 
     public void removeTriggers()
     {
-        dealDamage = null;
-        applyBurn = null;
-        applySlow = null;
-        applyDamageDebuff = null;
+        if (enemyAction == null || GameSession.gs == null || GameSession.gs.playerMember == null) return;
+
         enemyAction.enemyDealDamage -= GameSession.gs.playerMember.takeDamage;
     }
 
@@ -60,7 +81,10 @@ public class PlayerAction : MonoBehaviour
         if (turnOwner == 1) return; // enemy turn
         print("my turn");
 
+        if (GameSession.gs == null || GameSession.gs.playerMember == null) return;
+
         currentPlayer = GameSession.gs.playerMember;
+        if (currentPlayer == null) return;
 
         applyBurnDamage();
 
@@ -69,7 +93,7 @@ public class PlayerAction : MonoBehaviour
 
     private void applyBurnDamage()
     {
-        if (currentPlayer.currentBurnStacks > 0)
+        if (currentPlayer != null && currentPlayer.currentBurnStacks > 0)
         {
             float burnDamage = currentPlayer.calculateBurnDamage();
             currentPlayer.takeDamage(burnDamage, Element.Fire);
@@ -79,11 +103,29 @@ public class PlayerAction : MonoBehaviour
     // Enemy declared an attack; resolve parry windows and apply damage/mana, then finalize enemy turn
     private void OnEnemyAttackDeclared(AttackData attack)
     {
+        if (attack == null)
+        {
+            enemyAction?.FinalizeAttack(null);
+            return;
+        }
         StartCoroutine(HandleEnemyAttack(attack));
     }
 
     private IEnumerator HandleEnemyAttack(AttackData attack)
     {
+        if (parryController == null)
+        {
+            if (attack != null && attack.hits != null)
+            {
+                foreach (var hit in attack.hits)
+                {
+                    enemyAction?.RaiseEnemyDealDamage(hit.baseDamage, attack.element);
+                }
+            }
+            enemyAction?.FinalizeAttack(attack);
+            yield break;
+        }
+
         yield return StartCoroutine(parryController.parryStages(
             attack,
             onHitResolved: (ResolvedHit rh) =>
@@ -112,6 +154,12 @@ public class PlayerAction : MonoBehaviour
         menuDisplay?.Invoke(false);
         // a menu action has been chosen
         Element actionElement = Element.None;
+
+        if (currentPlayer == null)
+        {
+            playerTurnEnd?.Invoke();
+            return;
+        }
 
         if (action == "attack")
         {
