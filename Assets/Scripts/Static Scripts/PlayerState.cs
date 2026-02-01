@@ -242,6 +242,17 @@ public class PlayerState // essentially, i want this class to be a getter class 
         onPushTurnHalvesChanged?.Invoke(pushTurnHalves);
     }
 
+    public void addPushTurnHalves(int amount)
+    {
+        if (amount == 0) return;
+        pushTurnHalves += amount;
+        if (pushTurnHalves < 0)
+        {
+            pushTurnHalves = 0;
+        }
+        onPushTurnHalvesChanged?.Invoke(pushTurnHalves);
+    }
+
     public bool hasPushTurnIcons()
     {
         return pushTurnHalves > 0;

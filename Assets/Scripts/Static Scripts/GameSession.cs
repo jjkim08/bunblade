@@ -86,6 +86,8 @@ public class GameSession : MonoBehaviour
     [HideInInspector] public PlayerState playerMember;
     [HideInInspector] public EnemyState enemyMember;
 
+    public int currentGold { get; private set; } = 0;
+
     void Awake()
     {
         if (gs != null)
@@ -125,5 +127,11 @@ public class GameSession : MonoBehaviour
     public void SaveGame()
     {
         // Save system disabled for now
+    }
+
+    public void AddGold(int amount)
+    {
+        currentGold += amount;
+        Debug.Log($"Gold added: {amount}. Total gold: {currentGold}");
     }
 }

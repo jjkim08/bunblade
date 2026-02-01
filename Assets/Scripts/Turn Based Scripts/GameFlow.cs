@@ -154,9 +154,8 @@ public class GameFlow : MonoBehaviour
             if (pState.pendingBonusTurnIcons > 0)
             {
                 int bonus = pState.pendingBonusTurnIcons;
-                pState.pushTurnHalves += bonus * 2; // 1 full icon = 2 halves
+                pState.addPushTurnHalves(bonus * 2); // 1 full icon = 2 halves
                 pState.pendingBonusTurnIcons = 0;
-                pState.onPushTurnHalvesChanged?.Invoke(pState.pushTurnHalves);
             }
         }
         else
@@ -172,6 +171,15 @@ public class GameFlow : MonoBehaviour
 
     private void EndBattle()
     {
+        currentState = BattleState.gameOver;
+        
+        // Award gold if enemy was defeated
+        if (GameSession.gs != null && GameSession.gs.enemyMember != null && GameSession.gs.enemyMember.currentHealth <= 0)
+        {
+            int goldReward = GameSession.gs.enemyMember.enemyStats.goldDropAmount;
+            GameSession.gs.AddGold(goldReward);
+        }
+        
         cleanupTriggers();
         gameObject.SetActive(false);
     }
