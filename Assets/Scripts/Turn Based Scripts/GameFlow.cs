@@ -172,14 +172,14 @@ public class GameFlow : MonoBehaviour
     private void EndBattle()
     {
         currentState = BattleState.gameOver;
-        
+
         // Award gold if enemy was defeated
         if (GameSession.gs != null && GameSession.gs.enemyMember != null && GameSession.gs.enemyMember.currentHealth <= 0)
         {
             int goldReward = GameSession.gs.enemyMember.enemyStats.goldDropAmount;
             GameSession.gs.AddGold(goldReward);
         }
-        
+
         cleanupTriggers();
         gameObject.SetActive(false);
     }
