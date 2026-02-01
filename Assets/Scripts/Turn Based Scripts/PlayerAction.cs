@@ -113,7 +113,20 @@ public class PlayerAction : MonoBehaviour
 
     private IEnumerator HandleEnemyAttack(AttackData attack)
     {
-        yield return StartCoroutine(parryController.ResolveEnemyAttackWithParries(
+        if (parryController == null)
+        {
+            if (attack != null && attack.hits != null)
+            {
+                foreach (var hit in attack.hits)
+                {
+                    enemyAction?.RaiseEnemyDealDamage(hit.baseDamage, attack.element);
+                }
+            }
+            enemyAction?.FinalizeAttack(attack);
+            yield break;
+        }
+
+        yield return StartCoroutine(parryController.parryStages(
             attack,
             onHitResolved: (ResolvedHit rh) =>
             {
