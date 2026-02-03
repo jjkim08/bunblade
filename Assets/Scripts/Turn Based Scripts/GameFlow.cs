@@ -15,7 +15,14 @@ public class GameFlow : MonoBehaviour
 
     private int currentTurnActor = -1; // -1 default, 0 = player, 1 = enemy
 
-    private SortedList<(int time, int actor), int> turnOrder = new SortedList<(int time, int actor), int>();
+    private Heap<(int time, int actor)> turnOrder = new Heap<(int time, int actor)>(
+    Comparer<(int time, int actor)>.Create((a, b) =>
+    {
+        if (a.time == b.time && a.actor == b.actor) return 0;
+        if (a.time == b.time) return (a.actor - b.actor) / Math.Abs(a.actor - b.actor);
+        return (a.time - b.time) / Math.Abs(a.time - b.time);
+    }));
+
     // key: (time, actor), value: actor (0 = player, 1 = enemy)
 
     private int determineSpeedCoefficient(int speed)
@@ -186,4 +193,5 @@ public class GameFlow : MonoBehaviour
 
     // No extra helpers needed; stored on PlayerState
 }
+
 
