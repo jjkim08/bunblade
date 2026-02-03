@@ -12,6 +12,12 @@ public class Heap<T>
         _comparer = Comparer<T>.Default; // default configuration
     }
 
+    public Heap(IComparer<T> comparer)
+    {
+        items = new List<T>();
+        _comparer = comparer ?? Comparer<T>.Default;
+    }
+
     public Heap(bool doReverse)
     {
         items = new List<T>();
@@ -144,4 +150,5 @@ public class Heap<T>
             return items[index];
         }
     }
+
 }
