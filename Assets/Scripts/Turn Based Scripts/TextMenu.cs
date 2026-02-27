@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 using TMPro;
-using Unity.VisualScripting;
+using Unity.VisualScripting; // visuals for the menu
 
 public class TextMenu : MonoBehaviour
 {
@@ -21,6 +21,7 @@ public class TextMenu : MonoBehaviour
         menuActions.menuChanged -= updateMenu;
     }
 
+    
     private void updateMenu(List<string> newMenu)
     {
         string displayText = "";

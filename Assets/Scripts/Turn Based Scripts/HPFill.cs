@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+// simple program meant to display the health of the player
 public class HPFill : MonoBehaviour
 {
     public Image HPBar;
@@ -10,12 +11,12 @@ public class HPFill : MonoBehaviour
 
     void Start()
     {
-        // Subscribe to player health changes (player is always available from GameSession)
+
         if (GameSession.gs != null && GameSession.gs.playerMember != null)
         {
             currentPlayer = GameSession.gs.playerMember;
             currentPlayer.onHealthChanged += updateBar;
-            // Initialize bar to current health
+
             float healthPct = currentPlayer.currentHealth / Mathf.Max(1f, currentPlayer.playerStats.baseMaxHealth);
             updateBar(healthPct);
         }

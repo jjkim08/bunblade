@@ -4,19 +4,12 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Unity.Profiling;
 
-public class PlayerState // essentially, i want this class to be a getter class only
-// it will hold the stats, spells, and animations of a player
-// but it will not directly interfere with the game, ex it won't invoke damage to enemy, instead it will give calculations
+// similar to enemy state holds the current active values for the player throughout combat
+public class PlayerState
+
+
 {
 
-    // a player has (each party member will have their own PlayerState component)
-    // stats
-    // spells
-    // animations
-
-    // actively 
-    // currentHealth
-    // onHealthChanged
 
     public float currentHealth;
     public float currentShield = 0;
@@ -24,30 +17,38 @@ public class PlayerState // essentially, i want this class to be a getter class 
 
     public const int MAX_MANA = 10;
     public int currentMana = 0;
-    public event Action<int, int> onManaChanged; // (current, max)
+    public event Action<int, int> onManaChanged;
 
-    // Push Turn Icon System (halves only, 2 halves = 1 full)
+
+    public int currentAttackDamage;
+    public int currentAbilityPower;
+    public int currentDefense;
+
+
     public int pushTurnHalves = 0;
     public event Action<int> onPushTurnHalvesChanged;
-    // Bonus full icons awarded (e.g., from perfect parries) to apply next player turn
+
     public int pendingBonusTurnIcons = 0;
 
-    // Burn tracking: total stacks and remaining turns
+
     public int currentBurnStacks = 0;
     public int burnTurnsRemaining = 0;
 
 
-    // Slow tracking: total stacks and remaining turns
     public int currentSlowStacks = 0;
     public int slowTurnsRemaining = 0;
 
     public PlayerStats playerStats;
 
-    // make one for animations
 
     public PlayerState(PlayerStats stats)
     {
         playerStats = stats;
+
+
+        currentAttackDamage = stats.baseAttackDamage;
+        currentAbilityPower = stats.baseAbilityPower;
+        currentDefense = stats.baseDefense;
     }
 
 
@@ -55,6 +56,7 @@ public class PlayerState // essentially, i want this class to be a getter class 
     {
         return (float)(95.0 * (1.0 - Math.Pow(Math.E, -0.02f * defe)));
     }
+
 
     private float getElementalMultiplier(Element attackElement)
     {
@@ -64,6 +66,7 @@ public class PlayerState // essentially, i want this class to be a getter class 
         return 1f;
     }
 
+
     public int calculateIconCost(Element attackElement)
     {
         EnemyState enemy = GameSession.gs != null ? GameSession.gs.enemyMember : null;
@@ -72,19 +75,18 @@ public class PlayerState // essentially, i want this class to be a getter class 
         return 2;
     }
 
+
     public void takeDamage(float damage, Element element = Element.None)
     {
         damage *= getElementalMultiplier(element);
 
-        // shields absorb 100% damage but aren't affected by damage reduction, ex 30 damage will deal 30 damage to shield
-        // todo: make a shield bar
 
         if (currentShield > 0)
         {
             currentShield -= damage;
             if (currentShield < 0)
             {
-                damage = -currentShield; // remaining damage
+                damage = -currentShield;
                 currentShield = 0;
             }
             else
@@ -93,17 +95,18 @@ public class PlayerState // essentially, i want this class to be a getter class 
             }
         }
 
-        currentHealth -= (int)(damage * 0.01 * (100 - damageReduction(playerStats.baseDefense)));
-        if (currentHealth < 0)
+        currentHealth -= (int)(damage * 0.01 * (100 - damageReduction(currentDefense)));
+        if (currentHealth <= 0)
         {
             currentHealth = 0;
         }
         onHealthChanged?.Invoke((float)currentHealth / (float)playerStats.baseMaxHealth);
     }
 
+
     public float calculateBasicAttack()
     {
-        float totalDamage = playerStats.baseAttackDamage;
+        float totalDamage = currentAttackDamage;
 
         if (UnityEngine.Random.value < playerStats.baseluck * 0.01f)
         {
@@ -115,12 +118,13 @@ public class PlayerState // essentially, i want this class to be a getter class 
 
     public float calculateSpellAttack(string spellName)
     {
-        float totalDamage = playerStats.baseAbilityPower;
+        float totalDamage = currentAbilityPower;
 
-        totalDamage *= playerStats.spellInfo[spellName].multiplier; // float value
+        totalDamage *= playerStats.spellInfo[spellName].multiplier;
 
         return totalDamage;
     }
+
 
     public void heal(int healAmount)
     {
@@ -134,20 +138,21 @@ public class PlayerState // essentially, i want this class to be a getter class 
 
     public void giveShield(int shieldAmount)
     {
-        currentShield += shieldAmount; // shield can stack infinitely
+        currentShield += shieldAmount;
     }
 
     public int calculateShieldAmount()
     {
-        return playerStats.baseAbilityPower; // shields by ability power
+        return playerStats.baseAbilityPower;
     }
 
     public int calculateHealAmount()
     {
-        return (int)(playerStats.baseAbilityPower * 1.5f); // heals ability power * 1.5 health
+        return (int)(playerStats.baseAbilityPower * 1.5f);
     }
 
-    // Mana system
+
+
     public void gainMana(int amount)
     {
         currentMana += amount;
@@ -165,10 +170,13 @@ public class PlayerState // essentially, i want this class to be a getter class 
         return currentMana >= manaCost;
     }
 
+    // mana usage for handling spells
     public void consumeMana(int amount)
     {
+        UnityEngine.Debug.Log($"Consuming {amount} mana. Current: {currentMana}");
         currentMana -= amount;
         if (currentMana < 0) currentMana = 0;
+        UnityEngine.Debug.Log($"After consumption: {currentMana}");
         onManaChanged?.Invoke(currentMana, MAX_MANA);
     }
 
@@ -177,7 +185,7 @@ public class PlayerState // essentially, i want this class to be a getter class 
         return 0;
     }
 
-    // Burn system: adds stacks and refreshes duration to 3 turns
+
     public void takeBurn(int burnStacks)
     {
         currentBurnStacks += burnStacks;
@@ -191,6 +199,7 @@ public class PlayerState // essentially, i want this class to be a getter class 
         return baseDamage * getElementalMultiplier(Element.Fire);
     }
 
+
     public void tickBurnDuration()
     {
         if (burnTurnsRemaining > 0)
@@ -203,12 +212,13 @@ public class PlayerState // essentially, i want this class to be a getter class 
         }
     }
 
-    // Slow system: adds stacks and refreshes duration to 3 turns
+
     public void takeSlow(int slowStacks)
     {
         currentSlowStacks += slowStacks;
-        slowTurnsRemaining = 3; // refresh to 3 player turns
+        slowTurnsRemaining = 3;
     }
+
 
     public float getSpeedTimeMultiplier()
     {
@@ -219,6 +229,7 @@ public class PlayerState // essentially, i want this class to be a getter class 
         return 1f + effectiveSlow;
     }
 
+
     public void tickSlowDuration()
     {
         if (slowTurnsRemaining > 0)
@@ -226,7 +237,7 @@ public class PlayerState // essentially, i want this class to be a getter class 
             slowTurnsRemaining--;
             if (slowTurnsRemaining <= 0)
             {
-                currentSlowStacks = 0; // clear stacks when duration expires
+                currentSlowStacks = 0;
             }
         }
     }
@@ -241,6 +252,7 @@ public class PlayerState // essentially, i want this class to be a getter class 
         pushTurnHalves = 6;
         onPushTurnHalvesChanged?.Invoke(pushTurnHalves);
     }
+
 
     public void addPushTurnHalves(int amount)
     {
@@ -257,6 +269,7 @@ public class PlayerState // essentially, i want this class to be a getter class 
     {
         return pushTurnHalves > 0;
     }
+
 
     public void consumePushTurnIcons(int iconCost)
     {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
+// menu actions handles the arrow itself
 public class MenuActions : MonoBehaviour
 {
 
@@ -10,10 +11,10 @@ public class MenuActions : MonoBehaviour
     public PlayerAction playerAction;
     public RectTransform arrow;
     public event Action<List<string>> menuChanged;
-    public event Action<List<(string text, bool canAfford)>> spellMenuChanged; // New event for spell menu with affordability info
+    public event Action<List<(string text, bool canAfford)>> spellMenuChanged;
     public event Action<string> playerActionFired;
     private int currentSelection = 0;
-    public Stack<List<string>> currentMenuStack = new Stack<List<string>>();
+    public Stack<List<string>> currentMenuStack = new Stack<List<string>>(); // uses a stack list to handle the menu navigation, this allows for easy going back and forth between menus without needing to track the previous menu separately, as well as allowing for more complex menu structures in the future if desired
 
     public PlayerState currentPlayer;
 
@@ -42,13 +43,14 @@ public class MenuActions : MonoBehaviour
     private int menuUp() => currentSelection == 0 ? currentMenuStack.Peek().Count - 1 : currentSelection - 1;
     private int menuDown() => currentSelection == currentMenuStack.Peek().Count - 1 ? 0 : currentSelection + 1;
 
-    private void menuDisplay(bool show)
+    
+    private void menuDisplay(bool show) // displays the menu
     {
         currentPlayer = GameSession.gs.playerMember;
 
         spellMenu = currentPlayer.playerStats.spellInfo.Keys.ToList();
 
-        // Build main menu dynamically based on available options
+
         mainMenu = new List<string> { "Attack" };
 
         if (spellMenu.Count > 0)
@@ -56,25 +58,16 @@ public class MenuActions : MonoBehaviour
             mainMenu.Add("Spells");
         }
 
-        if (itemMenu.Count > 0)
-        {
-            mainMenu.Add("Items");
-        }
 
-        mainMenu.Add("Run");
-
-        // Reset menu stack with new main menu
         currentMenuStack.Clear();
         currentMenuStack.Push(mainMenu);
         currentSelection = 0;
         menuChanged?.Invoke(mainMenu);
 
-        print("show menu");
-
         gameObject.SetActive(show);
     }
 
-    void handleChoice()
+    void handleChoice() // this handles the selection
     {
         if (currentMenuStack.Count == 1)
         {
@@ -89,7 +82,7 @@ public class MenuActions : MonoBehaviour
                 currentMenuStack.Push(spellMenu);
                 currentSelection = 0;
 
-                // Send spell menu with affordability info
+
                 var spellsWithAffordability = spellMenu.Select(spell =>
                     (spell, currentPlayer.canCastSpell(spell))
                 ).ToList();
@@ -100,7 +93,7 @@ public class MenuActions : MonoBehaviour
                 currentMenuStack.Push(itemMenu);
                 currentSelection = 0;
             }
-            // "Run" option can be handled here if needed
+
         }
         else
         {
@@ -124,7 +117,7 @@ public class MenuActions : MonoBehaviour
     }
 
 
-    void Update()
+    void Update() // update handles the actual game logic itself, when you press buttons it will move the arrow accordingly
     {
         UnityEngine.Vector2 pos = arrow.anchoredPosition;
 

@@ -14,14 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: 0
   baseMaxHealth: 100
-  baseAttackDamage: 10
+  baseAttackDamage: 30
   baseAbilityPower: 10
   baseDefense: 5
   baseSpeed: 100
   baseluck: 5
+  weaknesses: 
+  resistances: 
   maxMana: 10
-  spellNames:
-  - Ignia
   serializableSpellInfo:
   - {fileID: 11400000, guid: b21b880e93e655e4f96c27de0443606a, type: 2}
   - {fileID: 11400000, guid: 6faea840345e4e14f8cf71409fbbf74c, type: 2}

@@ -1,92 +1,21 @@
 using UnityEngine;
+using System.Collections.Generic;
 
-/*
-// TESTING VERSION - Commented out for now
-public class GameSessionTesting : MonoBehaviour
-{
-    public static GameSession gs { get; private set; }
 
-    [HideInInspector] public PlayerState playerMember;
-    [HideInInspector] public EnemyState enemyMember;
-
-    [SerializeField] private EnemyStats demoEnemyForTesting;
-    [SerializeField] private PlayerStats demoPlayerStats;
-
-    private SaveSystem saveSystem;
-
-    void Awake()
-    {
-        if (gs != null)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        gs = this;
-        DontDestroyOnLoad(gameObject);
-
-        saveSystem = GetComponent<SaveSystem>();
-        if (saveSystem == null)
-            saveSystem = gameObject.AddComponent<SaveSystem>();
-
-        // TODO: Remove this line when done testing
-        InitializePlayer();
-
-        // TODO: Remove this line when done testing
-        if (demoEnemyForTesting != null)
-            InitializeBattle(demoEnemyForTesting);
-    }
-
-    private void InitializePlayer()
-    {
-        if (playerMember == null)
-        {
-            playerMember = new PlayerState(demoPlayerStats);
-
-            PlayerSaveData saved = saveSystem.LoadPlayer();
-            if (saved != null)
-            {
-                playerMember.currentHealth = saved.currentHealth;
-            }
-            else
-            {
-                // there is no save, todo: laterrrrr
-            }
-
-            playerMember.currentMana = 3;
-            playerMember.initializePushTurnIcons();
-        }
-    }
-
-    public void InitializeBattle(EnemyStats enemyToFight)
-    {
-        if (enemyToFight == null)
-            return;
-
-        enemyMember = new EnemyState(enemyToFight);
-        enemyMember.currentHealth = enemyToFight.baseMaxHealth;
-        enemyMember.initializePushTurnIcons();
-    }
-
-    public void SaveGame()
-    {
-        saveSystem.SavePlayer(playerMember);
-    }
-}
-*/
-
-// ORIGINAL VERSION - Restored
 public class GameSession : MonoBehaviour
 {
     public static GameSession gs { get; private set; }
 
-    [SerializeField] public PlayerStats demoPlayerStats;
-    [SerializeField] public EnemyStats demoEnemyStats;
+    [SerializeField] public PlayerStats demoPlayerStats; // currently a demo, character select screen will be made if there is more time
+    [SerializeField] public List<EnemyStats> enemyPool = new List<EnemyStats>();
 
     [HideInInspector] public PlayerState playerMember;
     [HideInInspector] public EnemyState enemyMember;
 
     public int currentGold { get; private set; } = 0;
+    private int battlesCompleted = 0;
+
+    // this is the central game session manager whcih handles the gameplay logic through starting the game and containing all important values
 
     void Awake()
     {
@@ -103,35 +32,66 @@ public class GameSession : MonoBehaviour
         InitializeEnemy();
     }
 
+    
     private void InitializePlayer()
     {
-        if (playerMember == null)
-        {
-            playerMember = new PlayerState(demoPlayerStats);
-            playerMember.currentHealth = demoPlayerStats.baseMaxHealth;
-            playerMember.currentMana = 3;
-            playerMember.initializePushTurnIcons();
-        }
+        playerMember = new PlayerState(demoPlayerStats);
+        playerMember.currentHealth = demoPlayerStats.baseMaxHealth;
+        playerMember.currentMana = 3;
+        playerMember.initializePushTurnIcons();
     }
 
+    // this calculates the buff that the enemy recieves after winning a battle to make the scaling fair
     public void InitializeEnemy()
     {
-        if (enemyMember == null)
+        if (enemyPool == null || enemyPool.Count == 0)
         {
-            enemyMember = new EnemyState(demoEnemyStats);
-            enemyMember.currentHealth = demoEnemyStats.baseMaxHealth;
-            enemyMember.initializePushTurnIcons();
+            return;
         }
-    }
 
-    public void SaveGame()
-    {
-        // Save system disabled for now
-    }
 
-    public void AddGold(int amount)
+        EnemyStats selectedEnemy = enemyPool[Random.Range(0, enemyPool.Count)];
+
+
+        EnemyStats buffedEnemy = ScriptableObject.CreateInstance<EnemyStats>();
+
+
+        buffedEnemy.id = selectedEnemy.id;
+        float buffMultiplier = 1f + (battlesCompleted * 0.5f);
+
+        buffedEnemy.baseMaxHealth = Mathf.RoundToInt(selectedEnemy.baseMaxHealth * buffMultiplier);
+        buffedEnemy.baseAttackDamage = Mathf.RoundToInt(selectedEnemy.baseAttackDamage * buffMultiplier);
+        buffedEnemy.baseAbilityPower = Mathf.RoundToInt(selectedEnemy.baseAbilityPower * buffMultiplier);
+        buffedEnemy.baseDefense = Mathf.RoundToInt(selectedEnemy.baseDefense * buffMultiplier);
+        buffedEnemy.baseSpeed = selectedEnemy.baseSpeed;
+        buffedEnemy.baseluck = selectedEnemy.baseluck;
+        buffedEnemy.goldDropAmount = Mathf.RoundToInt(selectedEnemy.goldDropAmount * buffMultiplier);
+
+
+        buffedEnemy.weaknesses = new List<Element>(selectedEnemy.weaknesses);
+        buffedEnemy.resistances = new List<Element>(selectedEnemy.resistances);
+        buffedEnemy.attackPatterns = new List<EnemyStats.AttackPattern>(selectedEnemy.attackPatterns);
+
+
+        enemyMember = new EnemyState(buffedEnemy);
+        enemyMember.currentHealth = buffedEnemy.baseMaxHealth;
+        enemyMember.initializePushTurnIcons();
+
+        battlesCompleted++;
+    }
+    public void AddGold(int amount) // adds gold after combat
     {
         currentGold += amount;
-        Debug.Log($"Gold added: {amount}. Total gold: {currentGold}");
+    }
+
+    
+    public bool SpendGold(int cost)
+    {
+        if (currentGold >= cost)
+        {
+            currentGold -= cost;
+            return true;
+        }
+        return false;
     }
 }

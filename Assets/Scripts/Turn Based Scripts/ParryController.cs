@@ -3,42 +3,40 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class ParryController : MonoBehaviour
+public class ParryController : MonoBehaviour // parry controller meant for parries
 {
-    public float downtimeSeconds = 0.75f; // time spent after the player parries, to prevent spam
+    public float downtimeSeconds = 0.75f;
 
-    public float postWindowLateThreshold = 0.08f; // 
+    public float postWindowLateThreshold = 0.08f;
+
+    [Header("Block Sprite")]
+    public SpriteRenderer playerSprite;
+    public Sprite blockSprite;
+    public float blockSpriteDisplaySeconds = 0.1f;
+    public Animator playerAnimator;
 
     private float downtimeUntil = 0f;
     private bool allHitsParried;
 
     public bool IsInDowntime => Time.time < downtimeUntil;
 
-    // this part is for testing
-    public SpriteRenderer playerSprite;
-    
-    public Color idleColor = Color.white;
-    public Color windupColor = new Color(1f, 0.9f, 0f); // soft yellow
-    public Color parryWindowColor = Color.green;
-    
-    public Color cooldownColor = new Color(1f, 0.3f, 0.3f); // soft red
-
-    private void setSpriteColor(Color c)
+    // runs an enumerator to go through the stages of a parry, this is called from the game flow when an attack is being resolved, it will go through each hit and check for parry input, then at the end it will return the results of the parry to be used in the attack resolution
+    public IEnumerator parryStages(AttackData attack, Action<int> onWindupStart, Action<ResolvedHit> onHitResolved, Action onReturnStart, Action<AttackResolution> onAttackResolved)
     {
-        if (playerSprite != null) playerSprite.color = c;
-    }
 
-    public IEnumerator parryStages(AttackData attack, Action<ResolvedHit> onHitResolved, Action<AttackResolution> onAttackResolved) {
-    
         allHitsParried = true;
-        setSpriteColor(idleColor);
 
+        int hitIndex = 0;
+        // loop to iterate through all the hits
         foreach (var hit in attack.hits)
         {
+
+            onWindupStart?.Invoke(hitIndex);
+            hitIndex++;
+
             float t = 0f;
             bool early = false;
-            setSpriteColor(windupColor);
-            while (t < hit.windupSeconds)
+            while (t < hit.windupSeconds) // determines whether it hits in the early, perfect, or late stages of the parry and determines the damage multiplier
             {
                 if (!early)
                 {
@@ -46,17 +44,16 @@ public class ParryController : MonoBehaviour
                     {
                         early = true;
                         downtimeUntil = Time.time + downtimeSeconds;
-                        setSpriteColor(cooldownColor);
+                        StartCoroutine(FlashBlockSprite());
                     }
                 }
                 t += Time.deltaTime;
                 yield return null;
             }
-            
+
             bool success = false;
             float windowT = 0f;
-            setSpriteColor(IsInDowntime ? cooldownColor : parryWindowColor);
-            
+
             while (windowT < hit.parryWindowSeconds)
             {
                 if (!success && hit.parryable && !IsInDowntime)
@@ -64,7 +61,7 @@ public class ParryController : MonoBehaviour
                     if (Input.GetKeyDown(KeyCode.Space))
                     {
                         success = true;
-                        setSpriteColor(parryWindowColor);
+                        StartCoroutine(FlashBlockSprite());
                     }
                 }
                 windowT += Time.deltaTime;
@@ -73,12 +70,12 @@ public class ParryController : MonoBehaviour
 
             bool late = false;
             float lateT = 0f;
-            setSpriteColor(IsInDowntime ? cooldownColor : idleColor);
             while (!success && !early && lateT < postWindowLateThreshold)
             {
                 if (Input.GetKeyDown(KeyCode.Space))
                 {
                     late = true;
+                    StartCoroutine(FlashBlockSprite());
                     break;
                 }
                 lateT += Time.deltaTime;
@@ -127,7 +124,14 @@ public class ParryController : MonoBehaviour
 
             onHitResolved?.Invoke(resolved);
 
-            setSpriteColor(IsInDowntime ? cooldownColor : idleColor);
+
+            onReturnStart?.Invoke();
+            float downtimeT = 0f;
+            while (downtimeT < hit.downtimeSeconds)
+            {
+                downtimeT += Time.deltaTime;
+                yield return null;
+            }
         }
 
         var attackRes = new AttackResolution
@@ -137,8 +141,41 @@ public class ParryController : MonoBehaviour
         };
 
         onAttackResolved?.Invoke(attackRes);
+    }
 
-        setSpriteColor(idleColor);
+    // this turns the sprite blue when it blocks
+    private IEnumerator FlashBlockSprite()
+    {
+        if (playerSprite != null && blockSprite != null)
+        {
+
+            Sprite spriteBeforeBlock = playerSprite.sprite;
+            Vector3 originalScale = playerSprite.transform.localScale;
+
+
+            bool wasAnimatorEnabled = false;
+            if (playerAnimator != null)
+            {
+                wasAnimatorEnabled = playerAnimator.enabled;
+                playerAnimator.enabled = false;
+            }
+
+
+            playerSprite.sprite = blockSprite;
+            playerSprite.transform.localScale = originalScale * 4f;
+
+            yield return new WaitForSeconds(blockSpriteDisplaySeconds);
+
+
+            playerSprite.sprite = spriteBeforeBlock;
+            playerSprite.transform.localScale = originalScale;
+
+
+            if (playerAnimator != null && wasAnimatorEnabled)
+            {
+                playerAnimator.enabled = true;
+            }
+        }
     }
 }
 

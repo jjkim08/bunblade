@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   spellName: Ignia
   description: Burns the enemy.
-  manaCost: 0
+  manaCost: 2
   element: 1
   appliedStacks: 3
   multiplier: 1.1

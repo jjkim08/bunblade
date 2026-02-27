@@ -1,15 +1,16 @@
 using System;
 using System.Collections.Generic;
 
+// custom heap function meant as a replacement for C++ priority queue
 public class Heap<T>
 {
     private List<T> items;
-    private IComparer<T> _comparer; // comparator to define heap order
+    private IComparer<T> _comparer;
 
     public Heap()
     {
         items = new List<T>();
-        _comparer = Comparer<T>.Default; // default configuration
+        _comparer = Comparer<T>.Default;
     }
 
     public Heap(bool doReverse)
@@ -32,6 +33,7 @@ public class Heap<T>
         heapify(_items);
     }
 
+    // inserts the elements into the heap explained in criterion C
     public void insert(T item)
     {
         items.Add(item);
@@ -44,13 +46,14 @@ public class Heap<T>
             if (_comparer.Compare(items[index], items[parentIndex]) >= 0)
                 break;
 
-            // Swap
+
             (items[index], items[parentIndex]) = (items[parentIndex], items[index]);
 
             index = parentIndex;
         }
     }
 
+    // removes the element at the very top of the heap
     public T remove()
     {
         if (items.Count == 0) throw new InvalidOperationException("Heap is empty");
@@ -83,7 +86,7 @@ public class Heap<T>
             if (smallestIndex == index)
                 break;
 
-            // Swap
+
             (items[index], items[smallestIndex]) = (items[smallestIndex], items[index]);
 
             index = smallestIndex;
@@ -92,9 +95,10 @@ public class Heap<T>
         return root;
     }
 
-    public void heapify(List<T> _items) // will rebuild the entire list
+    // builds a heap from an existing list of items
+    public void heapify(List<T> _items)
     {
-        // if for whatever reason the item list has values in it already, run an exception saying that needed to be empty
+
         if (items != null && items.Count > 0) throw new InvalidOperationException("Heap must be empty to heapify a new list.");
 
         for (int i = 0; i < _items.Count; i++)

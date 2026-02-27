@@ -1,14 +1,14 @@
 using System.Collections.Generic;
 using battleEnum;
 
-// Data structures representing enemy attacks and parry outcomes
-
+// this file contains the data structures for attacks and their resolution, this is used to store the data for attacks and to resolve them when they are executed
 public class AttackHitData
 {
     public float baseDamage;
     public bool parryable = true;
-    public float windupSeconds = 0.3f; // default values
+    public float windupSeconds = 0.3f;
     public float parryWindowSeconds = 0.2f;
+    public float downtimeSeconds = 0.5f;
 }
 
 public class AttackData
@@ -18,7 +18,7 @@ public class AttackData
     public List<AttackHitData> hits = new List<AttackHitData>();
     public bool isParryable = true;
 
-    public int iconCostHalves = 0; // how many halves to consume for this attack
+    public int iconCostHalves = 0;
 }
 
 public enum ParryResult

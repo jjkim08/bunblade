@@ -8,11 +8,11 @@ public class Spell : ScriptableObject
     public string description;
 
     public int manaCost;
-    public Element element = Element.None; // Element type of this spell
+    public Element element = Element.None;
 
-    public int appliedStacks; // for DoT or debuffs
+    public int appliedStacks;
 
-    public float multiplier; // how much ability power is multiplied by
+    public float multiplier;
 
     public Spell(string sN, string d, int mC, float m)
     {

@@ -6,51 +6,45 @@ using Unity.Profiling;
 using System.Runtime.InteropServices;
 using battleEnum;
 
+// handles enemy logic, this is the static baseline statistics updated through the game
 public class EnemyState
 {
 
-    // a enemy has (each party member will have their own EnemyState component)
-    // stats
-    // animations
-
-    // actively 
-    // currentHealth
-    // onHealthChanged
-
+    // current values of integers
     public float currentHealth;
     public event Action<float> onHealthChanged;
 
-    // Push Turn Icon System (halves only, 2 halves = 1 full)
+
     public int pushTurnHalves = 0;
     public event Action<int> onPushTurnHalvesChanged;
 
-    // Burn tracking: total stacks and remaining turns
+
     public int currentBurnStacks = 0;
     public int burnTurnsRemaining = 0;
 
-    // Slow tracking: total stacks and remaining turns
+
     public int currentSlowStacks = 0;
     public int slowTurnsRemaining = 0;
 
-    // Damage debuff tracking (Aquis): total stacks and remaining turns
+
     public int currentDamageDebuffStacks = 0;
     public int damageDebuffTurnsRemaining = 0;
 
     public EnemyStats enemyStats;
 
-    // make one for animations
 
     public EnemyState(EnemyStats stats)
     {
         enemyStats = stats;
     }
 
-
+    // elemental debuff and turn cost icon calculations
     private float damageReduction(int defe)
     {
         return (float)(95.0 * (1.0 - Math.Pow(Math.E, -0.02f * defe)));
     }
 
+    
     private float elementalMultiplier(Element attackElement)
     {
         if (attackElement == Element.None) return 1f;
@@ -59,6 +53,7 @@ public class EnemyState
         return 1f;
     }
 
+    
     public int calculateIconCost(Element attackElement)
     {
         PlayerState player = GameSession.gs != null ? GameSession.gs.playerMember : null;
@@ -67,6 +62,7 @@ public class EnemyState
         return 2;
     }
 
+    
     public void takeDamage(float damage, Element element)
     {
         damage *= elementalMultiplier(element);
@@ -83,9 +79,10 @@ public class EnemyState
     public void takeSlow(int slowStacks)
     {
         currentSlowStacks += slowStacks;
-        slowTurnsRemaining = 2; // refresh to 2 enemy turns
+        slowTurnsRemaining = 2;
     }
 
+    
     public float getSpeedTimeMultiplier()
     {
         if (currentSlowStacks <= 0) return 1f;
@@ -93,12 +90,11 @@ public class EnemyState
         float k = 0.5f;
         float effectiveSlow = basePerStack * currentSlowStacks / (1f + k * currentSlowStacks);
 
-        // base stacks * current stacks / (1 + k * current stacks) for diminishing returns
-        // desmos link: https://www.desmos.com/calculator/9ks9wf2avn
 
-        return 1f + effectiveSlow; // multiply base turn time by this
+        return 1f + effectiveSlow;
     }
 
+    
     public void tickSlowDuration()
     {
         if (slowTurnsRemaining > 0)
@@ -106,18 +102,19 @@ public class EnemyState
             slowTurnsRemaining--;
             if (slowTurnsRemaining <= 0)
             {
-                currentSlowStacks = 0; // clear stacks when duration expires
+                currentSlowStacks = 0;
             }
         }
     }
 
-    // Damage debuff: adds stacks and refreshes duration to 2 enemy turns (same as slow)
+
     public void takeDamageDebuff(int debuffStacks)
     {
         currentDamageDebuffStacks += debuffStacks;
         damageDebuffTurnsRemaining = 2;
     }
 
+    
     private float getDamageDebuffMultiplier()
     {
         if (currentDamageDebuffStacks <= 0) return 1f;
@@ -125,9 +122,10 @@ public class EnemyState
         float k = 0.5f;
         float effectiveReduction = basePerStack * currentDamageDebuffStacks / (1f + k * currentDamageDebuffStacks);
         float multiplier = 1f - effectiveReduction;
-        return Mathf.Clamp(multiplier, 0.4f, 1f); // prevent zeroing out damage; floor at 40%
+        return Mathf.Clamp(multiplier, 0.4f, 1f);
     }
 
+    
     public void tickDamageDebuffDuration()
     {
         if (damageDebuffTurnsRemaining > 0)
@@ -140,6 +138,7 @@ public class EnemyState
         }
     }
 
+    // basic attack damage calculation, includes randomness and debuffs but not buffs or player defense
     public float calculateAttack()
     {
         float totalDamage = enemyStats.baseAttackDamage;
@@ -149,27 +148,29 @@ public class EnemyState
             totalDamage *= (float)1.5;
         }
 
-        // Apply damage reduction debuff (Aquis) using same diminishing scaling as slow
+
         float damageMultiplier = getDamageDebuffMultiplier();
         totalDamage *= damageMultiplier;
 
         return totalDamage;
     }
 
-    // Burn system: adds stacks and refreshes duration to 3 turns
+
+    // takes burn damage
     public void takeBurn(int burnStacks)
     {
         currentBurnStacks += burnStacks;
-        burnTurnsRemaining = 3; // refresh to 3 enemy turns
+        burnTurnsRemaining = 3;
     }
 
     public float calculateBurnDamage()
     {
         if (currentBurnStacks <= 0) return 0f;
-        float baseDamage = (float)(enemyStats.baseMaxHealth * currentBurnStacks * 0.005); // 0.5% max health per stack
-        return baseDamage * elementalMultiplier(Element.Fire); // apply elemental multiplier
+        float baseDamage = (float)(enemyStats.baseMaxHealth * currentBurnStacks * 0.005);
+        return baseDamage * elementalMultiplier(Element.Fire);
     }
 
+    
     public void tickBurnDuration()
     {
         if (burnTurnsRemaining > 0)
@@ -177,7 +178,7 @@ public class EnemyState
             burnTurnsRemaining--;
             if (burnTurnsRemaining <= 0)
             {
-                currentBurnStacks = 0; // clear stacks when duration expires
+                currentBurnStacks = 0;
             }
         }
     }
@@ -198,6 +199,7 @@ public class EnemyState
         return pushTurnHalves > 0;
     }
 
+    // push turn icons work in halves
     public void consumePushTurnIcons(int iconCost)
     {
         if (iconCost <= 0) return;

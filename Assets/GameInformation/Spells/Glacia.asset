@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   spellName: Glacia
   description: Slows the enemy.
-  manaCost: 0
+  manaCost: 2
+  element: 0
   appliedStacks: 1
   multiplier: 1.3

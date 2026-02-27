@@ -1,29 +1,47 @@
 using System;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using battleEnum;
 using System.Collections.Generic;
 using System.Linq;
 
+// actual gameflow handling of the game itself
 public class GameFlow : MonoBehaviour
 {
+
     public BattleState currentState = BattleState.playerTurn;
     public PlayerAction playerAction;
     public EnemyAction enemyAction;
 
-    public event Action<int> turnChanged; // 0 = player turn, 1 = enemy turn
+    public event Action<int> turnChanged;
 
-    private int currentTurnActor = -1; // -1 default, 0 = player, 1 = enemy
+    private int currentTurnActor = -1;
+    private bool battleEnded = false;
 
-    private SortedList<(int time, int actor), int> turnOrder = new SortedList<(int time, int actor), int>();
-    // key: (time, actor), value: actor (0 = player, 1 = enemy)
+    // using a struct to support customized sorting of the turn order, this allows for more complex turn order logic in the future if desired, such as actors that can act multiple times in a row or have their turn delayed
+    private struct TurnEntry : IComparable<TurnEntry>
+    {
+        public int time;
+        public int actor;
+
+        public int CompareTo(TurnEntry other)
+        {
+            int timeCompare = time.CompareTo(other.time);
+            if (timeCompare != 0) return timeCompare;
+            return actor.CompareTo(other.actor);
+        }
+    }
+
+    private Heap<TurnEntry> turnOrder = new Heap<TurnEntry>();
 
     private int determineSpeedCoefficient(int speed)
     {
         if (speed <= 0) return 10000;
-        return (int)((float)1 / speed * 10000); // makes the usable speed out of a speed value
+        return (int)((float)1 / speed * 10000);
     }
 
+    // speed is invesely related to the time it takes for a character to take a turn, so higher speed means lower time, this function converts the speed stat into a time value that can be used in the turn order calculations
     private int getActorTime(int actor)
     {
         if (actor == 0)
@@ -58,10 +76,10 @@ public class GameFlow : MonoBehaviour
         int playerTime = getActorTime(0);
         int enemyTime = getActorTime(1);
 
-        turnOrder.Add((playerTime, 0), 0);
-        turnOrder.Add((enemyTime, 1), 1);
+        turnOrder.insert(new TurnEntry { time = playerTime, actor = 0 });
+        turnOrder.insert(new TurnEntry { time = enemyTime, actor = 1 });
 
-        // add triggers
+
         playerAction.addTriggers();
         enemyAction.addTriggers();
 
@@ -83,6 +101,7 @@ public class GameFlow : MonoBehaviour
         }
     }
 
+
     private void cleanupTriggers()
     {
         if (playerAction != null)
@@ -96,9 +115,14 @@ public class GameFlow : MonoBehaviour
     }
 
 
+    // gets called when the player action or enemy action is done their turn
     private void continueGameFlow()
     {
-        // check if battle is over
+        if (battleEnded)
+        {
+            return;
+        }
+
         if (GameSession.gs == null || GameSession.gs.playerMember == null || GameSession.gs.enemyMember == null)
         {
             EndBattle();
@@ -111,7 +135,7 @@ public class GameFlow : MonoBehaviour
             return;
         }
 
-        // If current actor still has icons, continue their phase
+
         bool currentActorHasIcons = false;
 
         if (currentTurnActor == 0)
@@ -129,32 +153,32 @@ public class GameFlow : MonoBehaviour
             return;
         }
 
-        // Current actor is out of icons, switch to next actor in initiative
+
         if (turnOrder.Count == 0)
         {
-            // Rebuild schedule if empty (safety)
+
             int playerTime = getActorTime(0);
             int enemyTime = getActorTime(1);
-            turnOrder.Add((playerTime, 0), 0);
-            turnOrder.Add((enemyTime, 1), 1);
+            turnOrder.insert(new TurnEntry { time = playerTime, actor = 0 });
+            turnOrder.insert(new TurnEntry { time = enemyTime, actor = 1 });
         }
 
-        var nextKey = turnOrder.Keys[0];
-        int time = nextKey.time;
-        int actor = nextKey.actor;
-        turnOrder.RemoveAt(0);
+        var next = turnOrder.remove();
+        int time = next.time;
+        int actor = next.actor;
 
         currentTurnActor = actor;
 
         if (actor == 0)
         {
             GameSession.gs.playerMember.initializePushTurnIcons();
-            // Apply any pending bonus full icons awarded from parries
+
+
             var pState = GameSession.gs.playerMember;
             if (pState.pendingBonusTurnIcons > 0)
             {
                 int bonus = pState.pendingBonusTurnIcons;
-                pState.addPushTurnHalves(bonus * 2); // 1 full icon = 2 halves
+                pState.addPushTurnHalves(bonus * 2);
                 pState.pendingBonusTurnIcons = 0;
             }
         }
@@ -163,27 +187,93 @@ public class GameFlow : MonoBehaviour
             GameSession.gs.enemyMember.initializePushTurnIcons();
         }
 
-        // Reschedule this unit's next turn
-        turnOrder.Add((time + getActorTime(actor), actor), actor);
+
+        turnOrder.insert(new TurnEntry { time = time + getActorTime(actor), actor = actor });
 
         turnChanged?.Invoke(actor);
+
+
+        PrintTurnInfo(actor);
     }
+
+    // basic debug function to pring to the logs to see character statistics
+    private void PrintTurnInfo(int turnOwner)
+    {
+        if (GameSession.gs == null || GameSession.gs.playerMember == null || GameSession.gs.enemyMember == null)
+            return;
+
+        PlayerState player = GameSession.gs.playerMember;
+        EnemyState enemy = GameSession.gs.enemyMember;
+        string turnOwnerName = turnOwner == 0 ? "PLAYER" : "ENEMY";
+
+        Debug.Log($"═══ {turnOwnerName} TURN ═══");
+
+
+        string playerInfo = $"PLAYER: HP {player.currentHealth:F0}/{player.playerStats.baseMaxHealth}";
+        if (player.currentShield > 0)
+            playerInfo += $" | Shield {player.currentShield:F0}";
+        playerInfo += $" | Mana {player.currentMana}/{PlayerState.MAX_MANA} | Icons {player.pushTurnHalves / 2}.{player.pushTurnHalves % 2}";
+        if (player.currentBurnStacks > 0)
+            playerInfo += $" | Burn {player.currentBurnStacks}({player.burnTurnsRemaining})";
+        if (player.currentSlowStacks > 0)
+            playerInfo += $" | Slow {player.currentSlowStacks}({player.slowTurnsRemaining})";
+        playerInfo += $" | ATK {player.currentAttackDamage} DEF {player.currentDefense} AP {player.currentAbilityPower}";
+        Debug.Log(playerInfo);
+
+
+        string enemyInfo = $"ENEMY: HP {enemy.currentHealth:F0}/{enemy.enemyStats.baseMaxHealth} | Icons {enemy.pushTurnHalves / 2}.{enemy.pushTurnHalves % 2}";
+        if (enemy.currentBurnStacks > 0)
+            enemyInfo += $" | Burn {enemy.currentBurnStacks}({enemy.burnTurnsRemaining})";
+        if (enemy.currentSlowStacks > 0)
+            enemyInfo += $" | Slow {enemy.currentSlowStacks}({enemy.slowTurnsRemaining})";
+        if (enemy.currentDamageDebuffStacks > 0)
+            enemyInfo += $" | DmgDebuff {enemy.currentDamageDebuffStacks}({enemy.damageDebuffTurnsRemaining})";
+        enemyInfo += $" | ATK {enemy.enemyStats.baseAttackDamage} DEF {enemy.enemyStats.baseDefense} AP {enemy.enemyStats.baseAbilityPower}";
+        Debug.Log(enemyInfo);
+
+        if (GameSession.gs.currentGold > 0)
+
+            Debug.Log($"Gold: {GameSession.gs.currentGold}");
+    }
+
 
     private void EndBattle()
     {
+        if (battleEnded)
+        {
+            return;
+        }
+
+        battleEnded = true;
+
         currentState = BattleState.gameOver;
 
-        // Award gold if enemy was defeated
+
         if (GameSession.gs != null && GameSession.gs.enemyMember != null && GameSession.gs.enemyMember.currentHealth <= 0)
         {
             int goldReward = GameSession.gs.enemyMember.enemyStats.goldDropAmount;
             GameSession.gs.AddGold(goldReward);
-        }
 
-        cleanupTriggers();
-        gameObject.SetActive(false);
+            cleanupTriggers();
+
+
+            StartCoroutine(LoadShopAfterDelay());
+        }
+        else if (GameSession.gs != null && GameSession.gs.playerMember != null && GameSession.gs.playerMember.currentHealth <= 0)
+        {
+
+            cleanupTriggers();
+            SceneManager.LoadScene("Lost");
+        }
     }
 
-    // No extra helpers needed; stored on PlayerState
+    private IEnumerator LoadShopAfterDelay()
+    {
+        yield return new WaitForSeconds(2f);
+
+        SceneManager.LoadScene("Shop");
+    }
+
+
 }
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+// same as hp fill but instead for the enemy, needs to be refreshed on each enemy
 public class HPFillEnemy : MonoBehaviour
 {
     public Image HPBar;
@@ -40,6 +41,7 @@ public class HPFillEnemy : MonoBehaviour
         if (HPBar != null) HPBar.fillAmount = healthPercentage;
     }
 
+    
     private void bindEnemy(EnemyState enemy)
     {
         if (currentEnemy != null)
