@@ -1,5 +1,7 @@
 ![Descrption](bunblade.gif)
 
+Playable web version: https://jacobkim.ca/game.html
+
 # Bunblade
 
 A turn-based RPG battle system built in Unity, combining classic elemental combat
